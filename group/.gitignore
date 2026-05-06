@@ -1,0 +1,22 @@
+﻿# Keep raw crawled data out of git
+/data/raw/
+/data/cache/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS/editor
+.DS_Store
+Thumbs.db
+
+# Local logs
+*.log
+
+# Local environments
+.venv/
+.conda/
+vendor_site/
+cache_runtime/

@@ -1,0 +1,23 @@
+﻿name: fintech-group-exp
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.11
+  - pandas=2.2.*
+  - numpy=1.26.*
+  - scikit-learn=1.5.*
+  - matplotlib=3.9.*
+  - seaborn=0.13.*
+  - requests=2.32.*
+  - feedparser=6.0.*
+  - beautifulsoup4=4.12.*
+  - pytorch=2.4.*
+  - pip
+  - pip:
+      - akshare>=1.14,<2.0
+      - transformers==4.45.2
+      - datasets==2.21.0
+      - accelerate==0.34.2
+      - yfinance>=0.2.40,<0.3
+      - python-dateutil==2.9.0.post0
