@@ -14,7 +14,7 @@ On this machine, the executed run used workspace-local fallback packages under `
 
 ```powershell
 Set-Location .\group
-python -m src.run_experiment --episodes 300 --walk-forward-folds 3 --lookback-years 2 --seed 42 --min-train-size 160
+python -m src.run_experiment --episodes 220 --walk-forward-folds 3 --lookback-years 2 --seed 42 --min-train-size 160 --gamma 0.95 --learning-rate 0.0003 --batch-size 64 --hidden-dim 128 --window-size 96 --reward-risk-penalty 0.04 --tau 0.02
 ```
 
 ## Outputs

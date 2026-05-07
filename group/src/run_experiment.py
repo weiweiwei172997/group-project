@@ -49,6 +49,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lookback-years", type=int, default=2)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--min-train-size", type=int, default=160)
+    parser.add_argument("--gamma", type=float, default=0.95)
+    parser.add_argument("--learning-rate", type=float, default=3e-4)
+    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--hidden-dim", type=int, default=128)
+    parser.add_argument("--window-size", type=int, default=96)
+    parser.add_argument("--reward-risk-penalty", type=float, default=0.04)
+    parser.add_argument("--tau", type=float, default=0.02)
     return parser.parse_args()
 
 
@@ -88,8 +95,18 @@ def main() -> None:
     training_rows: list[dict] = []
     all_curves: list[pd.DataFrame] = []
 
-    dqn_config = DQNConfig(episodes=args.episodes)
+    dqn_config = DQNConfig(
+        episodes=args.episodes,
+        gamma=args.gamma,
+        learning_rate=args.learning_rate,
+        batch_size=args.batch_size,
+        hidden_dim=args.hidden_dim,
+        window_size=args.window_size,
+        reward_risk_penalty=args.reward_risk_penalty,
+        tau=args.tau,
+    )
 
+    stock_splits: dict[str, list[tuple[int, pd.DataFrame, pd.DataFrame]]] = {}
     for stock in DEFAULT_STOCKS:
         stock_df = feature_df[feature_df["symbol"] == stock.symbol].sort_values("date").reset_index(drop=True)
         splits = make_walk_forward_splits(
@@ -97,32 +114,48 @@ def main() -> None:
             folds=args.walk_forward_folds,
             min_train_size=args.min_train_size,
         )
-        if not splits:
-            print(f"Skipping {stock.symbol}: not enough rows for walk-forward validation.")
-            continue
+        if splits:
+            stock_splits[stock.symbol] = splits
 
-        for fold_id, train_df, test_df in splits:
-            for strategy_name, include_sentiment in (("With_NLP", True), ("Without_NLP", False)):
-                feature_columns = get_feature_columns(include_sentiment)
-                trained = train_dqn(
-                    train_df=train_df,
-                    feature_columns=feature_columns,
-                    seed=args.seed + fold_id,
-                    config=dqn_config,
+    if not stock_splits:
+        raise RuntimeError("No stocks have enough rows for walk-forward validation.")
+
+    fold_count = min(len(splits) for splits in stock_splits.values())
+
+    for fold_idx in range(fold_count):
+        fold_id = fold_idx + 1
+        fold_train_sets = {
+            symbol: stock_splits[symbol][fold_idx][1]
+            for symbol in stock_splits
+        }
+        fold_test_sets = {
+            symbol: stock_splits[symbol][fold_idx][2]
+            for symbol in stock_splits
+        }
+
+        for strategy_name, include_sentiment in (("With_NLP", True), ("Without_NLP", False)):
+            feature_columns = get_feature_columns(include_sentiment)
+            trained = train_dqn(
+                train_df=list(fold_train_sets.values()),
+                feature_columns=feature_columns,
+                seed=args.seed + fold_id,
+                config=dqn_config,
+            )
+            for episode_idx, reward in enumerate(trained.training_rewards, start=1):
+                training_rows.append(
+                    {
+                        "stock": "ALL",
+                        "fold": fold_id,
+                        "strategy": strategy_name,
+                        "episode": episode_idx,
+                        "reward": reward,
+                    }
                 )
-                for episode_idx, reward in enumerate(trained.training_rewards, start=1):
-                    training_rows.append(
-                        {
-                            "stock": stock.symbol,
-                            "fold": fold_id,
-                            "strategy": strategy_name,
-                            "episode": episode_idx,
-                            "reward": reward,
-                        }
-                    )
 
+            for symbol, test_df in fold_test_sets.items():
+                train_df = fold_train_sets[symbol]
                 curve_df = evaluate_dqn(trained, test_df)
-                curve_df["stock"] = stock.symbol
+                curve_df["stock"] = symbol
                 curve_df["fold"] = fold_id
                 curve_df["strategy"] = strategy_name
                 all_curves.append(curve_df)
@@ -130,7 +163,7 @@ def main() -> None:
                 row = compute_performance_metrics(curve_df)
                 row.update(
                     {
-                        "stock": stock.symbol,
+                        "stock": symbol,
                         "fold": fold_id,
                         "strategy": strategy_name,
                         "train_rows": len(train_df),
@@ -139,8 +172,9 @@ def main() -> None:
                 )
                 metrics_rows.append(row)
 
+        for symbol, test_df in fold_test_sets.items():
             buy_hold_curve = evaluate_buy_and_hold(test_df, transaction_cost=dqn_config.transaction_cost)
-            buy_hold_curve["stock"] = stock.symbol
+            buy_hold_curve["stock"] = symbol
             buy_hold_curve["fold"] = fold_id
             buy_hold_curve["strategy"] = "Buy_and_Hold"
             all_curves.append(buy_hold_curve)
@@ -148,10 +182,10 @@ def main() -> None:
             row = compute_performance_metrics(buy_hold_curve)
             row.update(
                 {
-                    "stock": stock.symbol,
+                    "stock": symbol,
                     "fold": fold_id,
                     "strategy": "Buy_and_Hold",
-                    "train_rows": len(train_df),
+                    "train_rows": len(fold_train_sets[symbol]),
                     "test_rows": len(test_df),
                 }
             )

@@ -9,6 +9,7 @@ import zipfile
 from typing import Iterable
 from urllib.parse import quote_plus
 
+from bs4 import BeautifulSoup
 import feedparser
 import pandas as pd
 import requests
@@ -29,14 +30,20 @@ class StockSpec:
 
 
 DEFAULT_STOCKS: tuple[StockSpec, ...] = (
-    StockSpec("000001.SZ", "Ping An Bank", ("Ping An Bank", "平安银行", "000001")),
-    StockSpec("600036.SH", "China Merchants Bank", ("China Merchants Bank", "招商银行", "600036")),
-    StockSpec("600519.SH", "Kweichow Moutai", ("Kweichow Moutai", "贵州茅台", "600519")),
+    StockSpec("000001.SZ", "Ping An Bank", ("Ping An Bank", "平安银行")),
+    StockSpec("600036.SH", "China Merchants Bank", ("China Merchants Bank", "招商银行")),
+    StockSpec("600519.SH", "Kweichow Moutai", ("Kweichow Moutai", "贵州茅台", "Moutai")),
 )
 
 
 def _ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
+
+
+def _load_cached_csv(path: Path) -> pd.DataFrame | None:
+    if path.exists():
+        return pd.read_csv(path, parse_dates=["date"])
+    return None
 
 
 def _to_yf_symbol(symbol: str) -> str:
@@ -173,6 +180,16 @@ def _fetch_price_yfinance(symbol: str, start: datetime, end: datetime) -> pd.Dat
 
 
 def fetch_price_data(stocks: Iterable[StockSpec], start: datetime, end: datetime, raw_dir: Path) -> pd.DataFrame:
+    cached_path = raw_dir / "prices_raw.csv"
+    cached_df = _load_cached_csv(cached_path)
+    if cached_df is not None and not cached_df.empty:
+        min_date = cached_df["date"].min()
+        max_date = cached_df["date"].max()
+        symbols = set(cached_df["symbol"].unique().tolist())
+        expected_symbols = {spec.symbol for spec in stocks}
+        if min_date <= pd.Timestamp(start.date()) and max_date >= pd.Timestamp(end.date()) and expected_symbols.issubset(symbols):
+            return cached_df.sort_values(["symbol", "date"]).reset_index(drop=True)
+
     records: list[pd.DataFrame] = []
     for spec in stocks:
         try:
@@ -190,7 +207,7 @@ def fetch_price_data(stocks: Iterable[StockSpec], start: datetime, end: datetime
     out = pd.concat(records, ignore_index=True)
     out = out.sort_values(["symbol", "date"]).reset_index(drop=True)
     _ensure_dir(raw_dir)
-    out.to_csv(raw_dir / "prices_raw.csv", index=False, encoding="utf-8-sig")
+    out.to_csv(cached_path, index=False, encoding="utf-8-sig")
     return out
 
 
@@ -214,7 +231,35 @@ def _rss_fetch(url: str) -> feedparser.FeedParserDict:
     return feedparser.parse(resp.content)
 
 
+def _clean_html_text(text: str) -> str:
+    if not text:
+        return ""
+    if "<" in text or "&" in text:
+        cleaned = BeautifulSoup(text, "html.parser").get_text(" ", strip=True)
+    else:
+        cleaned = text
+    return " ".join(cleaned.split())
+
+
+def _looks_relevant(text: str, spec: StockSpec) -> bool:
+    lowered = text.lower()
+    return any(keyword.lower() in lowered for keyword in spec.keywords)
+
+
 def fetch_news_data(stocks: Iterable[StockSpec], start: datetime, end: datetime, raw_dir: Path) -> pd.DataFrame:
+    stock_map = {spec.symbol: spec for spec in stocks}
+    cached_path = raw_dir / "news_raw.csv"
+    cached_df = _load_cached_csv(cached_path)
+    if cached_df is not None and not cached_df.empty:
+        cached_df["date"] = pd.to_datetime(cached_df["date"])
+        cached_df["text"] = cached_df["text"].fillna("").astype(str).map(_clean_html_text)
+        cached_df = cached_df[cached_df.apply(lambda row: _looks_relevant(row["text"], stock_map[row["symbol"]]), axis=1)]
+        cached_df = cached_df[(cached_df["date"] >= pd.Timestamp(start.date())) & (cached_df["date"] <= pd.Timestamp(end.date()))]
+        cached_symbols = set(cached_df["symbol"].unique().tolist())
+        expected_symbols = {spec.symbol for spec in stocks}
+        if expected_symbols.issubset(cached_symbols):
+            return cached_df.sort_values(["symbol", "date", "published_at"]).reset_index(drop=True)
+
     rss_templates = (
         "https://www.bing.com/news/search?q={query}&format=rss",
         "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en",
@@ -241,10 +286,13 @@ def fetch_news_data(stocks: Iterable[StockSpec], start: datetime, end: datetime,
                     if not (start.date() <= published_dt.date() <= end.date()):
                         continue
 
-                    title = (entry.get("title") or "").strip()
-                    summary = (entry.get("summary") or "").strip()
+                    title = _clean_html_text((entry.get("title") or "").strip())
+                    summary = _clean_html_text((entry.get("summary") or "").strip())
                     link = (entry.get("link") or "").strip()
                     if not title or not link:
+                        continue
+                    text = f"{title}. {summary}".strip()
+                    if not _looks_relevant(text, spec):
                         continue
 
                     dedup_key = (spec.symbol, link)
@@ -262,24 +310,30 @@ def fetch_news_data(stocks: Iterable[StockSpec], start: datetime, end: datetime,
                             "summary": summary,
                             "url": link,
                             "query_keyword": kw,
-                            "text": f"{title}. {summary}".strip(),
+                            "text": text,
                         }
                     )
                 time.sleep(0.2)
 
     news_df = pd.DataFrame(rows)
     if news_df.empty:
+        if cached_df is not None and not cached_df.empty:
+            return cached_df.sort_values(["symbol", "date", "published_at"]).reset_index(drop=True)
         raise RuntimeError("No news items collected from RSS sources.")
 
     news_df["date"] = pd.to_datetime(news_df["date"])
     news_df = news_df.sort_values(["symbol", "date", "published_at"]).reset_index(drop=True)
     _ensure_dir(raw_dir)
-    news_df.to_csv(raw_dir / "news_raw.csv", index=False, encoding="utf-8-sig")
+    news_df.to_csv(cached_path, index=False, encoding="utf-8-sig")
     return news_df
 
 
 def fetch_phrasebank_data(raw_dir: Path) -> pd.DataFrame:
     _ensure_dir(raw_dir)
+    cached_csv = raw_dir / "phrasebank_allagree.csv"
+    if cached_csv.exists():
+        return pd.read_csv(cached_csv)
+
     zip_path = raw_dir / "FinancialPhraseBank-v1.0.zip"
     data_url = "https://huggingface.co/datasets/financial_phrasebank/resolve/main/data/FinancialPhraseBank-v1.0.zip"
 
@@ -309,5 +363,5 @@ def fetch_phrasebank_data(raw_dir: Path) -> pd.DataFrame:
     if df.empty:
         raise RuntimeError("Parsed PhraseBank is empty")
 
-    df.to_csv(raw_dir / "phrasebank_allagree.csv", index=False, encoding="utf-8-sig")
+    df.to_csv(cached_csv, index=False, encoding="utf-8-sig")
     return df

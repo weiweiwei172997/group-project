@@ -9,22 +9,26 @@ import pandas as pd
 import torch
 from sklearn.preprocessing import MinMaxScaler
 from torch import nn
+from torch.nn.utils import clip_grad_norm_
 
 
 @dataclass
 class DQNConfig:
     episodes: int = 300
-    gamma: float = 0.99
-    learning_rate: float = 1e-3
-    batch_size: int = 32
-    memory_size: int = 5000
+    gamma: float = 0.97
+    learning_rate: float = 5e-4
+    batch_size: int = 64
+    memory_size: int = 10000
     epsilon_start: float = 1.0
     epsilon_end: float = 0.05
-    epsilon_decay: float = 0.992
-    target_update_steps: int = 50
+    epsilon_decay: float = 0.995
+    target_update_steps: int = 100
     transaction_cost: float = 0.001
-    hidden_dim: int = 64
-    window_size: int = 64
+    hidden_dim: int = 128
+    window_size: int = 96
+    reward_risk_penalty: float = 0.08
+    gradient_clip: float = 1.0
+    tau: float = 0.02
 
 
 @dataclass
@@ -68,13 +72,21 @@ class QNetwork(nn.Module):
 
 
 class TradingEnv:
-    def __init__(self, features: np.ndarray, prices: np.ndarray, dates: list[pd.Timestamp], transaction_cost: float) -> None:
+    def __init__(
+        self,
+        features: np.ndarray,
+        prices: np.ndarray,
+        dates: list[pd.Timestamp],
+        transaction_cost: float,
+        reward_risk_penalty: float,
+    ) -> None:
         if len(prices) < 2:
             raise ValueError("TradingEnv requires at least two rows of market data.")
         self.features = features.astype(np.float32)
         self.prices = prices.astype(np.float32)
         self.dates = dates
         self.transaction_cost = transaction_cost
+        self.reward_risk_penalty = reward_risk_penalty
         self.reset()
 
     def reset(self) -> np.ndarray:
@@ -109,7 +121,9 @@ class TradingEnv:
         next_idx = min(self.idx + 1, len(self.prices) - 1)
         next_price = float(self.prices[next_idx])
         equity_after = max(self._equity(next_price), 1e-9)
-        reward = float(np.log(equity_after / equity_before))
+        asset_log_return = float(np.log(max(next_price, 1e-9) / max(price_t, 1e-9)))
+        position_exposure = 1.0 if self.shares > 0.0 else 0.0
+        reward = float(np.log(equity_after / equity_before) - self.reward_risk_penalty * abs(asset_log_return) * position_exposure)
 
         self.idx = next_idx
         done = self.idx >= len(self.prices) - 1
@@ -156,31 +170,48 @@ class DQNAgent:
 
         q_values = self.policy_net(states_t).gather(1, actions_t).squeeze(1)
         with torch.no_grad():
-            next_q_values = self.target_net(next_states_t).max(dim=1).values
+            next_actions = self.policy_net(next_states_t).argmax(dim=1, keepdim=True)
+            next_q_values = self.target_net(next_states_t).gather(1, next_actions).squeeze(1)
             targets = rewards_t + self.config.gamma * next_q_values * (1.0 - dones_t)
 
         loss = self.loss_fn(q_values, targets)
         self.optimizer.zero_grad()
         loss.backward()
+        clip_grad_norm_(self.policy_net.parameters(), self.config.gradient_clip)
         self.optimizer.step()
 
         self.train_steps += 1
         if self.train_steps % self.config.target_update_steps == 0:
-            self.target_net.load_state_dict(self.policy_net.state_dict())
+            self.soft_update_target()
         return float(loss.item())
+
+    def soft_update_target(self) -> None:
+        with torch.no_grad():
+            for target_param, policy_param in zip(self.target_net.parameters(), self.policy_net.parameters()):
+                target_param.data.copy_(
+                    target_param.data * (1.0 - self.config.tau) + policy_param.data * self.config.tau
+                )
 
 
 def train_dqn(
-    train_df: pd.DataFrame,
+    train_df: pd.DataFrame | list[pd.DataFrame],
     feature_columns: list[str],
     seed: int,
     config: DQNConfig | None = None,
 ) -> TrainedDQN:
     config = config or DQNConfig()
+    train_frames = train_df if isinstance(train_df, list) else [train_df]
+    combined_train = pd.concat(train_frames, ignore_index=True)
     scaler = MinMaxScaler()
-    scaled_features = scaler.fit_transform(train_df[feature_columns])
-    prices = train_df["close"].to_numpy(dtype=np.float32)
-    dates = train_df["date"].tolist()
+    scaler.fit(combined_train[feature_columns])
+
+    scaled_segments: list[np.ndarray] = []
+    price_segments: list[np.ndarray] = []
+    date_segments: list[list[pd.Timestamp]] = []
+    for frame in train_frames:
+        scaled_segments.append(scaler.transform(frame[feature_columns]))
+        price_segments.append(frame["close"].to_numpy(dtype=np.float32))
+        date_segments.append(frame["date"].tolist())
 
     state_dim = len(feature_columns) + 2
     agent = DQNAgent(state_dim=state_dim, action_dim=3, config=config, seed=seed)
@@ -189,18 +220,24 @@ def train_dqn(
     rng = np.random.default_rng(seed)
 
     for _ in range(config.episodes):
-        if len(train_df) > config.window_size + 2:
-            start_idx = int(rng.integers(0, len(train_df) - config.window_size - 1))
+        segment_idx = int(rng.integers(0, len(train_frames)))
+        segment_features = scaled_segments[segment_idx]
+        segment_prices = price_segments[segment_idx]
+        segment_dates = date_segments[segment_idx]
+
+        if len(segment_features) > config.window_size + 2:
+            start_idx = int(rng.integers(0, len(segment_features) - config.window_size - 1))
             end_idx = start_idx + config.window_size + 1
         else:
             start_idx = 0
-            end_idx = len(train_df)
+            end_idx = len(segment_features)
 
         env = TradingEnv(
-            features=scaled_features[start_idx:end_idx],
-            prices=prices[start_idx:end_idx],
-            dates=dates[start_idx:end_idx],
+            features=segment_features[start_idx:end_idx],
+            prices=segment_prices[start_idx:end_idx],
+            dates=segment_dates[start_idx:end_idx],
             transaction_cost=config.transaction_cost,
+            reward_risk_penalty=config.reward_risk_penalty,
         )
 
         state = env.reset()
@@ -228,6 +265,7 @@ def evaluate_dqn(trained: TrainedDQN, test_df: pd.DataFrame) -> pd.DataFrame:
         prices=test_df["close"].to_numpy(dtype=np.float32),
         dates=test_df["date"].tolist(),
         transaction_cost=trained.config.transaction_cost,
+        reward_risk_penalty=trained.config.reward_risk_penalty,
     )
 
     rows = [
