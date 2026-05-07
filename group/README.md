@@ -30,3 +30,14 @@ All committed deliverables are written into `group/results`:
 - `training_curve.png`
 
 Raw crawled data is written to `group/data/raw` and excluded from git by `.gitignore`.
+
+## Demo Dashboard
+
+Run the presentation dashboard from the `group` directory:
+
+```powershell
+Set-Location .\group
+streamlit run .\streamlit_dashboard.py
+```
+
+The dashboard reads directly from `group/results` and is intended for live presentation: it shows the ablation summary, selected fold metrics, price and equity curves, sentiment signals, and recent headlines scored by FinBERT.
