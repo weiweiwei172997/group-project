@@ -1118,13 +1118,129 @@
     </section>
 
     <!-- ===========================================
+         Slide 08: Case studies
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content top">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>07A / Case Studies</div>
+            <div class="speaker-tag"><strong>Member 5</strong><span>Three concrete wins</span></div>
+          </div>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">Do not stay at average metrics only. Show three concrete folds where NLP changed the decision quality.</h2>
+          <p class="slide-copy reveal" style="--delay:120ms;">
+            平均值很重要，但老师现场更容易被“一个具体案例”说服。下面三组可以直接拿来讲，因为它们同时展示了
+            <strong>With NLP</strong> 对 <strong>Without NLP</strong> 的明显提升。
+          </p>
+          <div class="grid-3">
+            <div class="panel reveal-scale" style="--delay:180ms;">
+              <strong>600036.SH · Fold 1</strong>
+              <ul class="bullet-list" style="margin-top:0.8rem;">
+                <li>With NLP: Sharpe <strong>2.329</strong>, Return <strong>1.34%</strong></li>
+                <li>Buy & Hold: Sharpe 0.318, Return 0.64%</li>
+                <li>Without NLP: Sharpe -4.551, Return -5.67%</li>
+              </ul>
+              <div class="callout" style="margin-top:0.85rem;">
+                Best live example: one fold where language clearly helps.
+              </div>
+            </div>
+            <div class="panel reveal-scale" style="--delay:240ms;">
+              <strong>000001.SZ · Fold 3</strong>
+              <ul class="bullet-list" style="margin-top:0.8rem;">
+                <li>With NLP: Sharpe <strong>2.293</strong>, Return <strong>5.96%</strong></li>
+                <li>Buy & Hold: Sharpe 1.555, Return 4.61%</li>
+                <li>Without NLP: Sharpe -3.796, Return -6.46%</li>
+              </ul>
+              <div class="callout" style="margin-top:0.85rem;">
+                Strongest “positive return” story to show on stage.
+              </div>
+            </div>
+            <div class="panel reveal-scale" style="--delay:300ms;">
+              <strong>600519.SH · Fold 2</strong>
+              <ul class="bullet-list" style="margin-top:0.8rem;">
+                <li>With NLP: Sharpe <strong>0.797</strong>, Return <strong>2.91%</strong></li>
+                <li>Buy & Hold: Sharpe 0.681, Return 2.70%</li>
+                <li>Without NLP: Sharpe -1.418, Return -6.67%</li>
+              </ul>
+              <div class="callout" style="margin-top:0.85rem;">
+                Even in a milder case, NLP still wins the comparison.
+              </div>
+            </div>
+          </div>
+          <div class="callout reveal" style="--delay:340ms;">
+            <strong>现场讲法：</strong>“我们不只看 overall average，也看单个 fold 的具体表现。这里能看到，带 NLP 的策略在多个案例里都把无 NLP 策略明显拉开。”
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         Slide 09: Why returns can still be hard
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content top">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>07B / Interpretation</div>
+            <div class="speaker-tag"><strong>Member 6</strong><span>Answer the hard question early</span></div>
+          </div>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">Why are some returns still weak, even when NLP helps?</h2>
+          <div class="grid-2">
+            <div class="panel reveal" style="--delay:120ms;">
+              <strong>Three structural reasons</strong>
+              <ul class="bullet-list" style="margin-top:0.8rem;">
+                <li><strong>Weak market window:</strong> even buy-and-hold has a negative average cumulative return.</li>
+                <li><strong>Sparse news flow:</strong> about <strong>81.5%</strong> of trading days have zero matched news items.</li>
+                <li><strong>Trading friction:</strong> transaction cost and risk penalty deliberately suppress over-trading.</li>
+              </ul>
+              <div class="callout" style="margin-top:0.85rem;">
+                So the system is improving decision quality, not claiming guaranteed profitability.
+              </div>
+            </div>
+            <div class="panel dark reveal" style="--delay:180ms;">
+              <strong>What we should claim in the report</strong>
+              <ul class="bullet-list" style="margin-top:0.8rem;color:#f5efe7;">
+                <li>Do say: “NLP improves risk-adjusted performance.”</li>
+                <li>Do say: “With NLP beats the no-NLP baseline in our ablation.”</li>
+                <li>Do not say: “The strategy always makes money.”</li>
+                <li>Do not hide the negative-return folds; explain them.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="grid-4">
+            <div class="stat-card reveal-scale" style="--delay:220ms;">
+              <div class="stat-label">News-free days</div>
+              <div class="stat-value">81.5%</div>
+              <div class="stat-meta">Most trading days have no direct text event</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:260ms;">
+              <div class="stat-label">Avg news/day</div>
+              <div class="stat-value">0.57</div>
+              <div class="stat-meta">Signal is valuable but sparse</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:300ms;">
+              <div class="stat-label">Main benefit</div>
+              <div class="stat-value">Sharpe</div>
+              <div class="stat-meta">Risk-adjusted quality over raw hype</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:340ms;">
+              <div class="stat-label">Main comparison</div>
+              <div class="stat-value">Ablation</div>
+              <div class="stat-meta">Feature-on vs feature-off</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
          Slide 08: Live demo
          =========================================== -->
     <section class="slide">
       <div class="slide-content top">
         <div class="slide-shell">
           <div class="slide-topline">
-            <div>07 / Live Demo</div>
+            <div>08 / Live Demo</div>
             <div class="speaker-tag"><strong>Member 5</strong><span>Required live demo</span></div>
           </div>
           <h2 class="slide-heading reveal" style="--delay:60ms;">This is the slide to use when the teacher says: show me the system.</h2>
@@ -1171,7 +1287,7 @@
       <div class="slide-content top">
         <div class="slide-shell">
           <div class="slide-topline">
-            <div>08 / Team Plan</div>
+            <div>09 / Team Plan</div>
             <div class="speaker-tag"><strong>6 people</strong><span>25-minute cap</span></div>
           </div>
           <h2 class="slide-heading reveal" style="--delay:60ms;">Clear division: each person owns one story block and one transition.</h2>
@@ -1218,7 +1334,7 @@
       <div class="slide-content top">
         <div class="slide-shell">
           <div class="slide-topline">
-            <div>09 / Defense</div>
+            <div>10 / Defense</div>
             <div class="speaker-tag"><strong>Member 6</strong><span>Questions & limits</span></div>
           </div>
           <h2 class="slide-heading reveal" style="--delay:60ms;">Have a clean answer ready when the teacher asks the hard questions.</h2>
@@ -1271,7 +1387,7 @@
       <div class="slide-content">
         <div class="slide-shell">
           <div class="slide-topline">
-            <div>10 / Closing</div>
+            <div>11 / Closing</div>
             <div class="speaker-tag"><strong>All members</strong><span>Q&A</span></div>
           </div>
           <div class="closing-card reveal" style="--delay:60ms;">
