@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NLP + RL Trading Platform Report</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" />
+    <style>
+      /* ===========================================
+         THEME
+         Bold editorial-tech deck with warm paper cards
+         =========================================== */
+      :root {
+        --bg-primary: #0f1117;
+        --bg-secondary: #161a22;
+        --card-bg: rgba(248, 242, 232, 0.94);
+        --card-soft: rgba(248, 242, 232, 0.72);
+        --text-primary: #f8f4ee;
+        --text-secondary: rgba(248, 244, 238, 0.72);
+        --ink: #172033;
+        --muted: #516072;
+        --accent: #ff6a3d;
+        --accent-2: #2ec4b6;
+        --accent-3: #ffd166;
+        --line: rgba(23, 32, 51, 0.12);
+        --font-display: "Archivo Black", sans-serif;
+        --font-body: "IBM Plex Sans", sans-serif;
+        --font-mono: "IBM Plex Mono", monospace;
+        --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+        --duration-normal: 0.6s;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, rgba(255, 106, 61, 0.16), transparent 24%),
+          radial-gradient(circle at top right, rgba(46, 196, 182, 0.12), transparent 22%),
+          linear-gradient(135deg, #0b0d12 0%, #0f1117 42%, #101421 100%);
+        color: var(--text-primary);
+        font-family: var(--font-body);
+        overflow-x: hidden;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .progress-bar {
+        position: fixed;
+        inset: 0 auto auto 0;
+        height: 4px;
+        width: 0%;
+        background: linear-gradient(90deg, var(--accent), var(--accent-3), var(--accent-2));
+        z-index: 1000;
+        box-shadow: 0 0 16px rgba(255, 106, 61, 0.5);
+      }
+
+      .nav-dots {
+        position: fixed;
+        right: clamp(1rem, 2vw, 1.6rem);
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        z-index: 900;
+      }
+
+      .nav-dot {
+        width: clamp(0.55rem, 0.8vw, 0.7rem);
+        height: clamp(0.55rem, 0.8vw, 0.7rem);
+        border-radius: 999px;
+        border: 0;
+        background: rgba(255, 255, 255, 0.22);
+        cursor: pointer;
+        transition: transform 220ms ease, background 220ms ease, width 220ms ease;
+      }
+
+      .nav-dot.active {
+        width: clamp(1.25rem, 2.2vw, 1.65rem);
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      }
+
+      .deck-hint {
+        position: fixed;
+        left: clamp(1rem, 2vw, 1.6rem);
+        bottom: clamp(0.9rem, 1.8vw, 1.2rem);
+        z-index: 800;
+        color: rgba(255, 255, 255, 0.58);
+        font-family: var(--font-mono);
+        font-size: clamp(0.62rem, 0.9vw, 0.82rem);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        pointer-events: none;
+      }
+
+      /* ===========================================
+         VIEWPORT BASE CSS
+         Paste the full required base file here.
+         =========================================== */
+      html, body {
+          height: 100%;
+          overflow-x: hidden;
+      }
+
+      html {
+          scroll-snap-type: y mandatory;
+          scroll-behavior: smooth;
+      }
+
+      .slide {
+          width: 100vw;
+          height: 100vh;
+          height: 100dvh;
+          overflow: hidden;
+          scroll-snap-align: start;
+          display: flex;
+          flex-direction: column;
+          position: relative;
+      }
+
+      .slide-content {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          max-height: 100%;
+          overflow: hidden;
+          padding: var(--slide-padding);
+      }
+
+      :root {
+          --title-size: clamp(1.5rem, 5vw, 4rem);
+          --h2-size: clamp(1.25rem, 3.5vw, 2.5rem);
+          --h3-size: clamp(1rem, 2.5vw, 1.75rem);
+          --body-size: clamp(0.75rem, 1.5vw, 1.125rem);
+          --small-size: clamp(0.65rem, 1vw, 0.875rem);
+          --slide-padding: clamp(1rem, 4vw, 4rem);
+          --content-gap: clamp(0.5rem, 2vw, 2rem);
+          --element-gap: clamp(0.25rem, 1vw, 1rem);
+      }
+
+      .card, .container, .content-box {
+          max-width: min(90vw, 1000px);
+          max-height: min(80vh, 700px);
+      }
+
+      .feature-list, .bullet-list {
+          gap: clamp(0.4rem, 1vh, 1rem);
+      }
+
+      .feature-list li, .bullet-list li {
+          font-size: var(--body-size);
+          line-height: 1.4;
+      }
+
+      .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+          gap: clamp(0.5rem, 1.5vw, 1rem);
+      }
+
+      img, .image-container {
+          max-width: 100%;
+          max-height: min(50vh, 400px);
+          object-fit: contain;
+      }
+
+      @media (max-height: 700px) {
+          :root {
+              --slide-padding: clamp(0.75rem, 3vw, 2rem);
+              --content-gap: clamp(0.4rem, 1.5vw, 1rem);
+              --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+              --h2-size: clamp(1rem, 3vw, 1.75rem);
+          }
+      }
+
+      @media (max-height: 600px) {
+          :root {
+              --slide-padding: clamp(0.5rem, 2.5vw, 1.5rem);
+              --content-gap: clamp(0.3rem, 1vw, 0.75rem);
+              --title-size: clamp(1.1rem, 4vw, 2rem);
+              --body-size: clamp(0.7rem, 1.2vw, 0.95rem);
+          }
+
+          .nav-dots, .keyboard-hint, .decorative {
+              display: none;
+          }
+      }
+
+      @media (max-height: 500px) {
+          :root {
+              --slide-padding: clamp(0.4rem, 2vw, 1rem);
+              --title-size: clamp(1rem, 3.5vw, 1.5rem);
+              --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+              --body-size: clamp(0.65rem, 1vw, 0.85rem);
+          }
+      }
+
+      @media (max-width: 600px) {
+          :root {
+              --title-size: clamp(1.25rem, 7vw, 2.5rem);
+          }
+
+          .grid {
+              grid-template-columns: 1fr;
+          }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+              animation-duration: 0.01ms !important;
+              transition-duration: 0.2s !important;
+          }
+
+          html {
+              scroll-behavior: auto;
+          }
+      }
+
+      /* ===========================================
+         PRESENTATION LAYOUT
+         =========================================== */
+      .slide-shell {
+        flex: 1;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: clamp(0.8rem, 1.8vw, 1.3rem);
+        max-height: 100%;
+      }
+
+      .slide-topline {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--content-gap);
+        font-size: var(--small-size);
+        color: var(--text-secondary);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .speaker-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-secondary);
+        font-family: var(--font-mono);
+        font-size: clamp(0.6rem, 0.8vw, 0.78rem);
+      }
+
+      .speaker-tag strong {
+        color: var(--text-primary);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.76);
+        font-size: var(--small-size);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        width: fit-content;
+      }
+
+      .title-stack {
+        max-width: 78vw;
+        display: grid;
+        gap: clamp(0.6rem, 1.6vw, 1rem);
+      }
+
+      .hero-title {
+        font-family: var(--font-display);
+        font-size: clamp(2.3rem, 7vw, 5.5rem);
+        line-height: 0.92;
+        letter-spacing: -0.03em;
+        margin: 0;
+        max-width: 12ch;
+      }
+
+      .hero-subtitle {
+        font-size: clamp(0.95rem, 1.9vw, 1.3rem);
+        line-height: 1.55;
+        color: rgba(248, 244, 238, 0.82);
+        max-width: 58ch;
+        margin: 0;
+      }
+
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: clamp(0.4rem, 0.9vw, 0.7rem);
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.45rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(248, 242, 232, 0.14);
+        border: 1px solid rgba(248, 242, 232, 0.14);
+        color: var(--text-primary);
+        font-size: var(--small-size);
+        font-family: var(--font-mono);
+        white-space: nowrap;
+      }
+
+      .chip.accent {
+        background: linear-gradient(135deg, rgba(255, 106, 61, 0.92), rgba(255, 209, 102, 0.96));
+        color: #10131b;
+        font-weight: 700;
+      }
+
+      .slide-inner {
+        display: grid;
+        gap: clamp(0.9rem, 2vw, 1.2rem);
+        max-height: 100%;
+      }
+
+      .slide-inner.top {
+        align-content: start;
+      }
+
+      .slide-heading {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: var(--h2-size);
+        line-height: 0.98;
+        letter-spacing: -0.03em;
+      }
+
+      .slide-copy {
+        margin: 0;
+        font-size: var(--body-size);
+        line-height: 1.55;
+        color: rgba(248, 244, 238, 0.75);
+        max-width: 78ch;
+      }
+
+      .panel {
+        background: var(--card-bg);
+        color: var(--ink);
+        border: 1px solid rgba(23, 32, 51, 0.08);
+        border-radius: clamp(18px, 2vw, 26px);
+        box-shadow: 0 18px 46px rgba(0, 0, 0, 0.18);
+        padding: clamp(0.9rem, 1.8vw, 1.3rem);
+        overflow: hidden;
+      }
+
+      .panel.soft {
+        background: var(--card-soft);
+      }
+
+      .panel.dark {
+        background: rgba(13, 16, 24, 0.62);
+        color: var(--text-primary);
+        border-color: rgba(255, 255, 255, 0.08);
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: var(--content-gap);
+      }
+
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--content-gap);
+      }
+
+      .grid-4 {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--content-gap);
+      }
+
+      .grid-6 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--content-gap);
+      }
+
+      .bullet-list {
+        margin: 0;
+        padding-left: 1.1rem;
+        display: grid;
+        gap: 0.55rem;
+        color: var(--ink);
+      }
+
+      .bullet-list li {
+        line-height: 1.45;
+      }
+
+      .callout {
+        border-left: 4px solid var(--accent);
+        background: linear-gradient(135deg, rgba(255, 106, 61, 0.10), rgba(46, 196, 182, 0.08));
+        padding: clamp(0.8rem, 1.5vw, 1rem);
+        border-radius: 0 16px 16px 0;
+        color: var(--ink);
+      }
+
+      .callout strong {
+        color: #121826;
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: clamp(0.6rem, 1.2vw, 0.9rem);
+      }
+
+      .stat-card {
+        border-radius: 18px;
+        padding: 0.95rem;
+        background: rgba(255, 255, 255, 0.62);
+        border: 1px solid rgba(23, 32, 51, 0.08);
+      }
+
+      .stat-label {
+        font-family: var(--font-mono);
+        font-size: clamp(0.58rem, 0.8vw, 0.72rem);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .stat-value {
+        margin-top: 0.3rem;
+        font-family: var(--font-display);
+        font-size: clamp(1.05rem, 2.3vw, 1.9rem);
+        line-height: 1;
+      }
+
+      .stat-meta {
+        margin-top: 0.35rem;
+        font-family: var(--font-mono);
+        font-size: clamp(0.58rem, 0.8vw, 0.72rem);
+        color: var(--muted);
+      }
+
+      .pipeline {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.7rem;
+      }
+
+      .pipe-node {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(23, 32, 51, 0.1);
+        border-radius: 18px;
+        padding: 0.9rem 0.85rem;
+        min-height: clamp(5.5rem, 14vh, 7.5rem);
+      }
+
+      .pipe-step {
+        font-family: var(--font-mono);
+        font-size: clamp(0.55rem, 0.78vw, 0.68rem);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .pipe-title {
+        margin-top: 0.35rem;
+        font-family: var(--font-display);
+        font-size: clamp(0.95rem, 1.4vw, 1.2rem);
+        line-height: 1.05;
+        color: #121826;
+      }
+
+      .pipe-copy {
+        margin-top: 0.35rem;
+        font-size: clamp(0.66rem, 1vw, 0.88rem);
+        line-height: 1.45;
+        color: #536070;
+      }
+
+      .arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(248, 244, 238, 0.66);
+        font-size: clamp(1rem, 2vw, 1.5rem);
+      }
+
+      .metric-stack {
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      .metric-row {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 0.6rem;
+        align-items: center;
+      }
+
+      .metric-name {
+        font-family: var(--font-mono);
+        font-size: clamp(0.62rem, 0.9vw, 0.74rem);
+        color: #384457;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .metric-track {
+        height: 0.85rem;
+        border-radius: 999px;
+        background: rgba(23, 32, 51, 0.08);
+        overflow: hidden;
+      }
+
+      .metric-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      }
+
+      .metric-value {
+        font-family: var(--font-mono);
+        font-size: clamp(0.66rem, 0.9vw, 0.8rem);
+        color: #354052;
+      }
+
+      .formula {
+        font-family: var(--font-mono);
+        font-size: clamp(0.72rem, 1.05vw, 0.94rem);
+        line-height: 1.55;
+        background: rgba(13, 16, 24, 0.7);
+        color: #eff3f7;
+        padding: clamp(0.8rem, 1.5vw, 1rem);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .state-cloud {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .state-pill {
+        padding: 0.43rem 0.68rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: clamp(0.58rem, 0.85vw, 0.75rem);
+        font-family: var(--font-mono);
+        color: var(--text-primary);
+      }
+
+      .state-pill.dark {
+        background: rgba(23, 32, 51, 0.06);
+        border-color: rgba(23, 32, 51, 0.08);
+        color: var(--ink);
+      }
+
+      .image-frame {
+        background: rgba(255, 255, 255, 0.62);
+        border: 1px solid rgba(23, 32, 51, 0.08);
+        border-radius: 20px;
+        padding: 0.8rem;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+      }
+
+      .image-frame img {
+        width: 100%;
+        height: auto;
+        border-radius: 14px;
+        display: block;
+      }
+
+      .timeline {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.55rem;
+      }
+
+      .timeline-item {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 0.8rem;
+        min-height: 6.5rem;
+      }
+
+      .timeline-index {
+        font-family: var(--font-display);
+        font-size: clamp(1rem, 1.8vw, 1.3rem);
+      }
+
+      .timeline-label {
+        margin-top: 0.25rem;
+        font-family: var(--font-mono);
+        font-size: clamp(0.56rem, 0.78vw, 0.68rem);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(248, 244, 238, 0.72);
+      }
+
+      .timeline-copy {
+        margin-top: 0.4rem;
+        font-size: clamp(0.62rem, 0.85vw, 0.78rem);
+        line-height: 1.4;
+        color: rgba(248, 244, 238, 0.82);
+      }
+
+      .team-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.7rem;
+      }
+
+      .team-card {
+        border-radius: 18px;
+        padding: 0.9rem;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(23, 32, 51, 0.08);
+      }
+
+      .team-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 0.5rem;
+      }
+
+      .team-role {
+        font-family: var(--font-display);
+        font-size: clamp(0.95rem, 1.4vw, 1.2rem);
+        line-height: 1.05;
+        color: #121826;
+      }
+
+      .team-time {
+        font-family: var(--font-mono);
+        font-size: clamp(0.58rem, 0.8vw, 0.72rem);
+        color: var(--accent);
+      }
+
+      .team-copy {
+        margin-top: 0.45rem;
+        font-size: clamp(0.66rem, 0.95vw, 0.86rem);
+        line-height: 1.45;
+        color: #4f5f71;
+      }
+
+      .closing-card {
+        border-radius: 28px;
+        padding: clamp(1rem, 2.4vw, 1.5rem);
+        background:
+          linear-gradient(135deg, rgba(255, 106, 61, 0.9), rgba(46, 196, 182, 0.86)),
+          radial-gradient(circle at top left, rgba(255,255,255,0.22), transparent 40%);
+        color: #0f1117;
+        box-shadow: 0 22px 56px rgba(0, 0, 0, 0.22);
+      }
+
+      .closing-title {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: clamp(2rem, 5vw, 4.2rem);
+        line-height: 0.95;
+        letter-spacing: -0.03em;
+      }
+
+      .closing-copy {
+        margin-top: 0.7rem;
+        font-size: clamp(0.9rem, 1.7vw, 1.15rem);
+        line-height: 1.55;
+        max-width: 54ch;
+      }
+
+      .visible .reveal {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .reveal {
+        opacity: 0;
+        transform: translateY(24px);
+        transition:
+          opacity var(--duration-normal) var(--ease-out-expo),
+          transform var(--duration-normal) var(--ease-out-expo);
+        transition-delay: var(--delay, 0ms);
+      }
+
+      .reveal-scale {
+        opacity: 0;
+        transform: scale(0.96);
+        transition:
+          opacity var(--duration-normal) var(--ease-out-expo),
+          transform var(--duration-normal) var(--ease-out-expo);
+        transition-delay: var(--delay, 0ms);
+      }
+
+      .visible .reveal-scale {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .pulse {
+        animation: pulse 2.8s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-2px); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progress-bar"></div>
+    <nav class="nav-dots" aria-label="Slide navigation"></nav>
+    <div class="deck-hint">Arrow / Space / Wheel / Touch</div>
+
+    <!-- ===========================================
+         Slide 01: Title
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>Fintech assignment</div>
+            <div class="speaker-tag"><strong>Member 1</strong><span>Opening</span></div>
+          </div>
+          <div class="title-stack">
+            <span class="eyebrow reveal" style="--delay:80ms;">NLP + RL Trading Platform</span>
+            <h1 class="hero-title reveal" style="--delay:160ms;">From News To Trade</h1>
+            <p class="hero-subtitle reveal" style="--delay:240ms;">
+              用新闻情绪驱动强化学习交易决策，并用消融实验回答一个问题：
+              NLP 信号到底能不能提升 RL 交易表现。
+            </p>
+            <div class="chip-row reveal" style="--delay:320ms;">
+              <span class="chip accent">6 people</span>
+              <span class="chip">25 min max</span>
+              <span class="chip">Live demo required</span>
+              <span class="chip">With / Without NLP</span>
+            </div>
+          </div>
+          <div class="slide-topline">
+            <div>Live presentation deck</div>
+            <div>Group project showcase</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         Slide 02: One-sentence architecture
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content top">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>01 / Overview</div>
+            <div class="speaker-tag"><strong>Member 1</strong><span>Frame the problem</span></div>
+          </div>
+          <h2 class="slide-heading reveal" style="--delay:80ms;">One sentence: news becomes state, state becomes action.</h2>
+          <p class="slide-copy reveal" style="--delay:140ms;">
+            我们把财经新闻抓成日度文本，把文本变成情绪分数，再把情绪分数放进 DQN 的状态向量，
+            最后用 walk-forward 和消融实验检验它是否真的有交易价值。
+          </p>
+          <div class="pipeline">
+            <div class="pipe-node reveal-scale" style="--delay:140ms;">
+              <div class="pipe-step">Step 1</div>
+              <div class="pipe-title">Online data collection</div>
+              <div class="pipe-copy">Prices, RSS news, and Financial PhraseBank.</div>
+            </div>
+            <div class="arrow reveal" style="--delay:220ms;">→</div>
+            <div class="pipe-node reveal-scale" style="--delay:240ms;">
+              <div class="pipe-step">Step 2</div>
+              <div class="pipe-title">NLP signal</div>
+              <div class="pipe-copy">FinBERT + LR, then daily sentiment aggregation.</div>
+            </div>
+            <div class="arrow reveal" style="--delay:300ms;">→</div>
+            <div class="pipe-node reveal-scale" style="--delay:320ms;">
+              <div class="pipe-step">Step 3</div>
+              <div class="pipe-title">RL decision</div>
+              <div class="pipe-copy">State = price + indicators + position + cash + sentiment.</div>
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="panel reveal" style="--delay:320ms;">
+              <strong>Core claim</strong>
+              <div class="slide-copy" style="margin-top:0.4rem;color:#233042;">NLP is not a decoration. It is an extra state feature tested by ablation.</div>
+            </div>
+            <div class="panel reveal" style="--delay:380ms;">
+              <strong>Evaluation</strong>
+              <div class="slide-copy" style="margin-top:0.4rem;color:#233042;">Walk-forward validation, Sharpe Ratio, Max Drawdown, and buy-and-hold benchmark.</div>
+            </div>
+            <div class="panel reveal" style="--delay:440ms;">
+              <strong>Demo path</strong>
+              <div class="slide-copy" style="margin-top:0.4rem;color:#233042;">Use the Streamlit dashboard to switch stock, fold, and strategy live.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         Slide 03: Data pipeline
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content top">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>02 / Data</div>
+            <div class="speaker-tag"><strong>Member 2</strong><span>Data & preprocessing</span></div>
+          </div>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">We built the pipeline from scratch, then kept only what the model can trade on.</h2>
+          <p class="slide-copy reveal" style="--delay:120ms;">
+            3 只 A 股，近 2 年日频数据，公开 RSS 新闻，外加 Financial PhraseBank 训练集。
+            先清洗，再聚合，再做技术指标，最后形成 RL state。
+          </p>
+          <div class="stat-grid">
+            <div class="stat-card reveal-scale" style="--delay:180ms;">
+              <div class="stat-label">Price rows</div>
+              <div class="stat-value">1,453</div>
+              <div class="stat-meta">3 stocks · daily OHLCV</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:240ms;">
+              <div class="stat-label">News rows</div>
+              <div class="stat-value">600</div>
+              <div class="stat-meta">RSS → de-dup → daily aggregate</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:300ms;">
+              <div class="stat-label">PhraseBank</div>
+              <div class="stat-value">2,264</div>
+              <div class="stat-meta">All-agree labels for supervision</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:360ms;">
+              <div class="stat-label">Feature rows</div>
+              <div class="stat-value">856</div>
+              <div class="stat-meta">After technical warm-up</div>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="panel reveal" style="--delay:360ms;">
+              <strong>Features used by the agent</strong>
+              <div class="state-cloud" style="margin-top:0.75rem;">
+                <span class="state-pill dark">close</span>
+                <span class="state-pill dark">MA50</span>
+                <span class="state-pill dark">MA200</span>
+                <span class="state-pill dark">RSI</span>
+                <span class="state-pill dark">MACD</span>
+                <span class="state-pill dark">position</span>
+                <span class="state-pill dark">cash</span>
+                <span class="state-pill dark">sentiment_score</span>
+              </div>
+              <ul class="bullet-list" style="margin-top:0.9rem;">
+                <li>新闻文本只保留和股票相关的条目，避免噪声污染情绪信号。</li>
+                <li>技术指标全部由历史价格计算，避免 look-ahead bias。</li>
+                <li>news_count=0 的日期用情绪衰减延续，不让信号断掉。</li>
+              </ul>
+            </div>
+            <div class="panel reveal" style="--delay:420ms;">
+              <strong>Why this matters</strong>
+              <div class="slide-copy" style="margin-top:0.45rem;color:#233042;">
+                交易策略不是在空中做分类，而是在可落地的时序状态上做决策。数据质量决定了后面 DQN 是否有意义。
+              </div>
+              <div class="callout" style="margin-top:0.9rem;">
+                <strong>现场讲法：</strong>“我们先把新闻、价格、标签统一成日度时序，再把语言信号变成可以进 state 的数值变量。”
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         Slide 04: NLP module
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content top">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>03 / NLP</div>
+            <div class="speaker-tag"><strong>Member 3</strong><span>Sentiment module</span></div>
+          </div>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">FinBERT is the signal source; LR is the baseline check.</h2>
+          <p class="slide-copy reveal" style="--delay:120ms;">
+            我们先验证情绪分类本身是否靠谱，再把最好的情绪信号送进交易系统。
+          </p>
+          <div class="grid-2">
+            <div class="panel reveal" style="--delay:180ms;">
+              <strong>Model quality</strong>
+              <div class="metric-stack" style="margin-top:0.85rem;">
+                <div class="metric-row">
+                  <div class="metric-name">FinBERT F1</div>
+                  <div class="metric-track"><div class="metric-fill" style="width:97%;"></div></div>
+                  <div class="metric-value">0.969</div>
+                </div>
+                <div class="metric-row">
+                  <div class="metric-name">LR F1</div>
+                  <div class="metric-track"><div class="metric-fill" style="width:90%; background:linear-gradient(90deg, #2ec4b6, #ffd166);"></div></div>
+                  <div class="metric-value">0.899</div>
+                </div>
+                <div class="metric-row">
+                  <div class="metric-name">Accuracy</div>
+                  <div class="metric-track"><div class="metric-fill" style="width:95%; background:linear-gradient(90deg, #ff6a3d, #ffd166);"></div></div>
+                  <div class="metric-value">0.969 / 0.898</div>
+                </div>
+              </div>
+              <div class="callout" style="margin-top:0.9rem;">
+                <strong>Conclusion:</strong> FinBERT is the final sentiment backbone in the trading pipeline.
+              </div>
+            </div>
+            <div class="panel reveal" style="--delay:240ms;">
+              <strong>How sentiment enters the system</strong>
+              <ul class="bullet-list" style="margin-top:0.8rem;">
+                <li>新闻标题和摘要先进入 FinBERT 生成正/中/负标签。</li>
+                <li>标签聚合成日度 sentiment_score，再做衰减延续。</li>
+                <li>当某日无新闻时，上一日情绪以 0.85 衰减，不让 state 突然失真。</li>
+              </ul>
+              <div class="state-cloud" style="margin-top:0.9rem;">
+                <span class="state-pill dark">positive</span>
+                <span class="state-pill dark">neutral</span>
+                <span class="state-pill dark">negative</span>
+                <span class="state-pill dark">daily aggregation</span>
+                <span class="state-pill dark">decay carry-forward</span>
+              </div>
+            </div>
+          </div>
+          <div class="callout reveal" style="--delay:300ms;">
+            <strong>现场讲法：</strong>“我们不直接拿词袋就去交易，而是先用 FinBERT 做情绪质量验证，再把情绪分数当作 RL 的额外状态维度。”
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         Slide 05: RL module
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content top">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>04 / RL</div>
+            <div class="speaker-tag"><strong>Member 4</strong><span>State & DQN</span></div>
+          </div>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">The agent sees price, position, cash, and language at the same time.</h2>
+          <div class="grid-2">
+            <div class="panel dark reveal" style="--delay:120ms;">
+              <strong>State vector</strong>
+              <div class="state-cloud" style="margin-top:0.8rem;">
+                <span class="state-pill">close</span>
+                <span class="state-pill">MA50</span>
+                <span class="state-pill">MA200</span>
+                <span class="state-pill">RSI</span>
+                <span class="state-pill">MACD</span>
+                <span class="state-pill">position</span>
+                <span class="state-pill">cash</span>
+                <span class="state-pill">sentiment_score</span>
+              </div>
+              <div class="formula" style="margin-top:0.85rem;">
+                reward = log(equity_t+1 / equity_t) - risk_penalty × |asset_return| × exposure
+              </div>
+              <ul class="bullet-list" style="margin-top:0.9rem;color:#f5efe7;">
+                <li>Actions: Hold / Buy / Sell.</li>
+                <li>Double DQN + target network + replay buffer.</li>
+                <li>Walk-forward split avoids look-ahead bias.</li>
+              </ul>
+            </div>
+            <div class="panel reveal" style="--delay:180ms;">
+              <strong>Why this formulation works</strong>
+              <ul class="bullet-list" style="margin-top:0.8rem;">
+                <li>Technical indicators capture momentum and trend.</li>
+                <li>cash and position prevent unrealistic inventory assumptions.</li>
+                <li>sentiment_score lets the policy react to information flow before price fully moves.</li>
+              </ul>
+              <div class="callout" style="margin-top:0.9rem;">
+                <strong>Demo note:</strong> If asked why DQN is needed, answer: it learns sequential decisions, not one-step classification.
+              </div>
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="stat-card reveal-scale" style="--delay:220ms;">
+              <div class="stat-label">Episodes used in final run</div>
+              <div class="stat-value">220</div>
+              <div class="stat-meta">Best current tuned setting</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:280ms;">
+              <div class="stat-label">Gamma</div>
+              <div class="stat-value">0.95</div>
+              <div class="stat-meta">Balanced long-term horizon</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:340ms;">
+              <div class="stat-label">Risk penalty</div>
+              <div class="stat-value">0.04</div>
+              <div class="stat-meta">Controls over-trading</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         Slide 06: Experiment protocol
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content top">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>05 / Experiments</div>
+            <div class="speaker-tag"><strong>Member 4</strong><span>Protocol & validation</span></div>
+          </div>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">Ablation is the whole point: with NLP vs without NLP.</h2>
+          <div class="grid-2">
+            <div class="panel reveal" style="--delay:120ms;">
+              <strong>Design rules</strong>
+              <ul class="bullet-list" style="margin-top:0.8rem;">
+                <li>3 A股: 000001.SZ, 600036.SH, 600519.SH.</li>
+                <li>Walk-forward validation over 3 folds.</li>
+                <li>Benchmark against buy-and-hold.</li>
+                <li>Report Sharpe, Max Drawdown, and cumulative return.</li>
+              </ul>
+              <div class="callout" style="margin-top:0.85rem;">
+                <strong>Comparison logic:</strong> keep everything the same except the sentiment feature.
+              </div>
+            </div>
+            <div class="image-frame reveal" style="--delay:160ms;">
+              <img src="results/training_curve.png" alt="DQN training curve" />
+            </div>
+          </div>
+          <div class="timeline">
+            <div class="timeline-item reveal-scale" style="--delay:200ms;">
+              <div class="timeline-index">01</div>
+              <div class="timeline-label">With NLP</div>
+              <div class="timeline-copy">Sentiment included in the state vector.</div>
+            </div>
+            <div class="timeline-item reveal-scale" style="--delay:260ms;">
+              <div class="timeline-index">02</div>
+              <div class="timeline-label">Without NLP</div>
+              <div class="timeline-copy">Same setup, sentiment removed.</div>
+            </div>
+            <div class="timeline-item reveal-scale" style="--delay:320ms;">
+              <div class="timeline-index">03</div>
+              <div class="timeline-label">Buy-and-Hold</div>
+              <div class="timeline-copy">Simple benchmark, one-time buy.</div>
+            </div>
+            <div class="timeline-item reveal-scale" style="--delay:380ms;">
+              <div class="timeline-index">04</div>
+              <div class="timeline-label">Walk-forward</div>
+              <div class="timeline-copy">No look-ahead, train then test in time order.</div>
+            </div>
+            <div class="timeline-item reveal-scale" style="--delay:440ms;">
+              <div class="timeline-index">05</div>
+              <div class="timeline-label">Decision</div>
+              <div class="timeline-copy">Does language improve trading quality?</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         Slide 07: Results
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content top">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>06 / Results</div>
+            <div class="speaker-tag"><strong>Member 5</strong><span>Results & interpretation</span></div>
+          </div>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">With NLP improves risk-adjusted performance and beats the no-NLP baseline.</h2>
+          <div class="stat-grid">
+            <div class="stat-card reveal-scale" style="--delay:120ms;">
+              <div class="stat-label">Buy & Hold Sharpe</div>
+              <div class="stat-value">-0.874</div>
+              <div class="stat-meta">Mean across 9 folds</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:180ms;">
+              <div class="stat-label">With NLP Sharpe</div>
+              <div class="stat-value">-0.543</div>
+              <div class="stat-meta">Best of the three strategies</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:240ms;">
+              <div class="stat-label">Without NLP Sharpe</div>
+              <div class="stat-value">-2.612</div>
+              <div class="stat-meta">Worst, and the most volatile</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:300ms;">
+              <div class="stat-label">FinBERT F1</div>
+              <div class="stat-value">0.969</div>
+              <div class="stat-meta">Reliable sentiment source</div>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="panel reveal" style="--delay:300ms;">
+              <strong>What the numbers say</strong>
+              <ul class="bullet-list" style="margin-top:0.8rem;">
+                <li>Absolute returns remain modest because the market window is weak.</li>
+                <li>NLP mostly improves the risk profile, not just raw return.</li>
+                <li>The no-NLP agent over-trades and performs the worst.</li>
+              </ul>
+            </div>
+            <div class="image-frame reveal" style="--delay:360ms;">
+              <img src="results/equity_curve_comparison.png" alt="Equity curve comparison" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         Slide 08: Live demo
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content top">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>07 / Live Demo</div>
+            <div class="speaker-tag"><strong>Member 5</strong><span>Required live demo</span></div>
+          </div>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">This is the slide to use when the teacher says: show me the system.</h2>
+          <div class="grid-2">
+            <div class="panel reveal" style="--delay:120ms;">
+              <strong>Exact demo route</strong>
+              <ol class="bullet-list" style="margin-top:0.8rem;padding-left:1.15rem;">
+                <li>Open the Streamlit dashboard.</li>
+                <li>Select stock <strong>600036.SH</strong> and fold <strong>1</strong>.</li>
+                <li>Set strategy to <strong>With_NLP</strong>.</li>
+                <li>Point to price, equity, news count, and sentiment on the chart.</li>
+                <li>Switch to <strong>Without_NLP</strong> to show the contrast.</li>
+              </ol>
+              <div class="callout" style="margin-top:0.9rem;">
+                <strong>Backup route:</strong> If live internet is unstable, show the static charts and CSV results on this deck.
+              </div>
+            </div>
+            <div class="panel dark reveal" style="--delay:180ms;">
+              <strong>What to say while clicking</strong>
+              <ul class="bullet-list" style="margin-top:0.8rem;color:#f4efe6;">
+                <li>“These are the same results generated by the pipeline, now exposed as a dashboard.”</li>
+                <li>“The selected fold is a walk-forward split, so there is no look-ahead leakage.”</li>
+                <li>“With NLP has the better Sharpe in this case, which is exactly the value of the project.”</li>
+              </ul>
+              <div class="chip-row" style="margin-top:0.95rem;">
+                <span class="chip accent">show chart</span>
+                <span class="chip">show headlines</span>
+                <span class="chip">switch strategy</span>
+                <span class="chip">explain results</span>
+              </div>
+            </div>
+          </div>
+          <div class="callout reveal" style="--delay:240ms;">
+            <strong>Teacher-facing explanation:</strong> “The demo is live, but the model is pre-trained. We use the dashboard to demonstrate the full pipeline, not to waste time retraining during the presentation.”
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         Slide 09: Six-person division
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content top">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>08 / Team Plan</div>
+            <div class="speaker-tag"><strong>6 people</strong><span>25-minute cap</span></div>
+          </div>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">Clear division: each person owns one story block and one transition.</h2>
+          <p class="slide-copy reveal" style="--delay:120ms;">
+            这样做的好处是：每个人讲自己负责的东西，不会抢话，也不会在 live demo 时手忙脚乱。
+          </p>
+          <div class="team-grid">
+            <div class="team-card reveal-scale" style="--delay:120ms;">
+              <div class="team-head"><div class="team-role">Member 1</div><div class="team-time">3 min</div></div>
+              <div class="team-copy">开场、问题定义、为什么要把 NLP 接进 RL 交易系统。</div>
+            </div>
+            <div class="team-card reveal-scale" style="--delay:160ms;">
+              <div class="team-head"><div class="team-role">Member 2</div><div class="team-time">4 min</div></div>
+              <div class="team-copy">数据抓取、清洗、技术指标和时序构造。</div>
+            </div>
+            <div class="team-card reveal-scale" style="--delay:200ms;">
+              <div class="team-head"><div class="team-role">Member 3</div><div class="team-time">4 min</div></div>
+              <div class="team-copy">NLP 模块、FinBERT、LR 对比、情绪聚合逻辑。</div>
+            </div>
+            <div class="team-card reveal-scale" style="--delay:240ms;">
+              <div class="team-head"><div class="team-role">Member 4</div><div class="team-time">4 min</div></div>
+              <div class="team-copy">RL 状态设计、DQN、reward、walk-forward protocol。</div>
+            </div>
+            <div class="team-card reveal-scale" style="--delay:280ms;">
+              <div class="team-head"><div class="team-role">Member 5</div><div class="team-time">6 min</div></div>
+              <div class="team-copy">结果解释 + 现场 live demo，负责展示看板并切换策略。</div>
+            </div>
+            <div class="team-card reveal-scale" style="--delay:320ms;">
+              <div class="team-head"><div class="team-role">Member 6</div><div class="team-time">4 min</div></div>
+              <div class="team-copy">局限、答辩 Q&A、总结与收尾。</div>
+            </div>
+          </div>
+          <div class="callout reveal" style="--delay:340ms;">
+            <strong>Total:</strong> 3 + 4 + 4 + 4 + 6 + 4 = 25 minutes exactly.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         Slide 10: Defenses / limitations
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content top">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>09 / Defense</div>
+            <div class="speaker-tag"><strong>Member 6</strong><span>Questions & limits</span></div>
+          </div>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">Have a clean answer ready when the teacher asks the hard questions.</h2>
+          <div class="grid-2">
+            <div class="panel reveal" style="--delay:120ms;">
+              <strong>Three answers to remember</strong>
+              <ul class="bullet-list" style="margin-top:0.8rem;">
+                <li><strong>Why negative return?</strong> The test window is weak, and buy-and-hold is also negative on average.</li>
+                <li><strong>Why still a success?</strong> With NLP improves Sharpe and drawdown versus the no-NLP agent.</li>
+                <li><strong>Why walk-forward?</strong> Because the task must avoid look-ahead bias.</li>
+              </ul>
+            </div>
+            <div class="panel dark reveal" style="--delay:180ms;">
+              <strong>One-sentence conclusion</strong>
+              <div class="closing-copy" style="margin-top:0.8rem;">
+                The project does not claim to print money; it proves that language signals can improve the quality of trading decisions.
+              </div>
+            </div>
+          </div>
+          <div class="grid-4">
+            <div class="stat-card reveal-scale" style="--delay:220ms;">
+              <div class="stat-label">Best claim</div>
+              <div class="stat-value">Sharpe up</div>
+              <div class="stat-meta">vs no NLP</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:260ms;">
+              <div class="stat-label">Method</div>
+              <div class="stat-value">Ablation</div>
+              <div class="stat-meta">same model, one feature removed</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:300ms;">
+              <div class="stat-label">Risk metric</div>
+              <div class="stat-value">MDD</div>
+              <div class="stat-meta">drawdown-aware argument</div>
+            </div>
+            <div class="stat-card reveal-scale" style="--delay:340ms;">
+              <div class="stat-label">Live demo</div>
+              <div class="stat-value">Required</div>
+              <div class="stat-meta">do not retrain live</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         Slide 11: Closing
+         =========================================== -->
+    <section class="slide">
+      <div class="slide-content">
+        <div class="slide-shell">
+          <div class="slide-topline">
+            <div>10 / Closing</div>
+            <div class="speaker-tag"><strong>All members</strong><span>Q&A</span></div>
+          </div>
+          <div class="closing-card reveal" style="--delay:60ms;">
+            <h2 class="closing-title">NLP is useful when it changes the state, not just the chart.</h2>
+            <div class="closing-copy">
+              Thanks. We are ready to show the live dashboard, explain the ablation, and answer questions about data,
+              model design, and evaluation.
+            </div>
+            <div class="chip-row" style="margin-top:0.95rem;">
+              <span class="chip">Live demo first</span>
+              <span class="chip">Result tables second</span>
+              <span class="chip">Q&A third</span>
+            </div>
+          </div>
+          <div class="slide-topline">
+            <div>Press arrows / space to navigate</div>
+            <div>Built for local live presentation</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      /* ===========================================
+         SLIDE PRESENTATION CONTROLLER
+         =========================================== */
+      class SlidePresentation {
+        constructor() {
+          this.slides = Array.from(document.querySelectorAll(".slide"));
+          this.navDotsContainer = document.querySelector(".nav-dots");
+          this.progressBar = document.querySelector(".progress-bar");
+          this.currentSlide = 0;
+          this.ignoreWheel = false;
+          this.touchStartY = 0;
+          this.setupIntersectionObserver();
+          this.setupKeyboardNav();
+          this.setupTouchNav();
+          this.setupWheelNav();
+          this.setupProgressBar();
+          this.setupNavDots();
+          this.goTo(0, false);
+        }
+
+        setupIntersectionObserver() {
+          const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("visible");
+                const index = this.slides.indexOf(entry.target);
+                if (index >= 0) {
+                  this.currentSlide = index;
+                  this.updateNav();
+                  this.updateProgress();
+                }
+              }
+            });
+          }, { threshold: 0.58 });
+
+          this.slides.forEach((slide) => observer.observe(slide));
+        }
+
+        setupKeyboardNav() {
+          document.addEventListener("keydown", (event) => {
+            if (["ArrowDown", "PageDown", " "].includes(event.key)) {
+              event.preventDefault();
+              this.goTo(this.currentSlide + 1);
+            }
+            if (["ArrowUp", "PageUp"].includes(event.key)) {
+              event.preventDefault();
+              this.goTo(this.currentSlide - 1);
+            }
+            if (event.key === "Home") {
+              event.preventDefault();
+              this.goTo(0);
+            }
+            if (event.key === "End") {
+              event.preventDefault();
+              this.goTo(this.slides.length - 1);
+            }
+          });
+        }
+
+        setupTouchNav() {
+          document.addEventListener("touchstart", (event) => {
+            this.touchStartY = event.touches[0].clientY;
+          }, { passive: true });
+
+          document.addEventListener("touchend", (event) => {
+            const touchEndY = event.changedTouches[0].clientY;
+            const delta = this.touchStartY - touchEndY;
+            if (Math.abs(delta) > 60) {
+              this.goTo(this.currentSlide + (delta > 0 ? 1 : -1));
+            }
+          }, { passive: true });
+        }
+
+        setupWheelNav() {
+          window.addEventListener("wheel", (event) => {
+            if (this.ignoreWheel) return;
+            if (Math.abs(event.deltaY) < 26) return;
+            event.preventDefault();
+            this.goTo(this.currentSlide + (event.deltaY > 0 ? 1 : -1));
+            this.ignoreWheel = true;
+            setTimeout(() => { this.ignoreWheel = false; }, 650);
+          }, { passive: false });
+        }
+
+        setupProgressBar() {
+          this.updateProgress();
+        }
+
+        setupNavDots() {
+          this.navDotsContainer.innerHTML = "";
+          this.slides.forEach((slide, index) => {
+            const btn = document.createElement("button");
+            btn.className = "nav-dot";
+            btn.type = "button";
+            btn.setAttribute("aria-label", `Go to slide ${index + 1}`);
+            btn.addEventListener("click", () => this.goTo(index));
+            this.navDotsContainer.appendChild(btn);
+          });
+        }
+
+        updateNav() {
+          const dots = Array.from(this.navDotsContainer.children);
+          dots.forEach((dot, index) => dot.classList.toggle("active", index === this.currentSlide));
+        }
+
+        updateProgress() {
+          const pct = ((this.currentSlide + 1) / this.slides.length) * 100;
+          this.progressBar.style.width = `${pct}%`;
+        }
+
+        goTo(index, smooth = true) {
+          const target = Math.max(0, Math.min(this.slides.length - 1, index));
+          this.currentSlide = target;
+          this.updateNav();
+          this.updateProgress();
+          this.slides[target].scrollIntoView({
+            behavior: smooth ? "smooth" : "auto",
+            block: "start"
+          });
+        }
+      }
+
+      new SlidePresentation();
+    </script>
+  </body>
+</html>
