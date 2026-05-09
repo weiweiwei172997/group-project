@@ -1,6 +1,6 @@
 # Group Experiment Pipeline
 
-This folder contains the full experiment pipeline required by the project guidelines. It fetches all data online, builds NLP sentiment signals, injects them into a DQN trading state, runs an ablation study with and without NLP, and compares both against buy-and-hold.
+This folder contains the latest end-to-end experiment pipeline for the group project. It fetches price and news data, routes English news through FinBERT and Chinese news through a Chinese financial sentiment dictionary, injects the resulting daily sentiment signal into a DQN trading state, and compares `With_NLP`, `Without_NLP`, and `Buy-and-Hold`.
 
 ## Environment
 
@@ -29,7 +29,20 @@ All committed deliverables are written into `group/results`:
 - `equity_curve_comparison.png`
 - `training_curve.png`
 
-Raw crawled data is written to `group/data/raw` and excluded from git by `.gitignore`.
+Reproducibility snapshots are kept in `group/data/raw`, including:
+
+- `prices_raw.csv`
+- `news_raw.csv`
+- `news_bootstrap_real.csv`
+- `phrasebank_allagree.csv`
+- `FinancialPhraseBank-v1.0.zip`
+- `Chinese_financial_sentiment_dictionary_Jiang_2020.xlsx`
+
+The project does not require a real news article on every calendar day. Instead:
+
+- `news_raw.csv` stores real collected news only
+- `daily_sentiment_scores.csv` stores the daily aggregated sentiment signal
+- missing-news dates are handled in feature engineering by sentiment decay / forward carry, not by fabricating news items
 
 ## Demo Dashboard
 
@@ -40,7 +53,13 @@ Set-Location .\group
 streamlit run .\streamlit_dashboard.py
 ```
 
-The dashboard reads directly from `group/results` and is intended for live presentation: it shows the ablation summary, selected fold metrics, price and equity curves, sentiment signals, and recent headlines scored by FinBERT.
+The dashboard reads directly from `group/results` and is intended for live presentation. It shows:
+
+- overall ablation metrics
+- per-fold strategy metrics
+- price and normalized equity curves
+- daily sentiment signals and news counts
+- recent headlines scored by FinBERT or the Chinese financial sentiment dictionary
 
 ## Presentation File
 
