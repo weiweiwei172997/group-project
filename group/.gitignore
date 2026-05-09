@@ -1,5 +1,11 @@
-﻿# Keep raw crawled data out of git
-/data/raw/
+# Keep most raw crawled data out of git, but retain reproducibility snapshots
+/data/raw/*
+!/data/raw/news_raw.csv
+!/data/raw/news_bootstrap_real.csv
+!/data/raw/prices_raw.csv
+!/data/raw/phrasebank_allagree.csv
+!/data/raw/FinancialPhraseBank-v1.0.zip
+!/data/raw/Chinese_financial_sentiment_dictionary_Jiang_2020.xlsx
 /data/cache/
 
 # Python artifacts

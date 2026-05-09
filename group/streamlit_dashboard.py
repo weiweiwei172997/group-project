@@ -255,9 +255,9 @@ def render_hero(summary_df: pd.DataFrame, nlp_df: pd.DataFrame) -> None:
               <span class="eyebrow">Live Demo Layer</span>
               <h1 class="hero-title">NLP + RL Trading Monitor</h1>
               <p class="hero-copy">
-                This dashboard turns the assignment into a demo narrative: online news becomes a FinBERT
-                sentiment signal, the signal enters the DQN state, and the final ablation shows what changes
-                when language is removed from the policy.
+                This dashboard turns the assignment into a demo narrative: English news is scored by FinBERT,
+                Chinese news is scored by a Chinese financial sentiment dictionary, both are turned into a
+                daily sentiment signal, and the DQN policy uses that signal in the state vector.
               </p>
             </div>
             <div class="hero-side">
@@ -583,7 +583,7 @@ def main() -> None:
     bottom_left, bottom_right = st.columns([1.05, 0.95], gap="large")
     with bottom_left:
         st.markdown('<div class="section-title">NLP Model Quality</div>', unsafe_allow_html=True)
-        st.markdown('<div class="section-copy">Use this panel to justify why FinBERT is the production sentiment source for the trading state.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-copy">Use this panel to justify why we combine FinBERT with a Chinese financial sentiment dictionary instead of forcing one model onto both languages.</div>', unsafe_allow_html=True)
         st.plotly_chart(build_nlp_radar(data["nlp_metrics"]), use_container_width=True)
 
         stock_metrics = data["fold_metrics"][data["fold_metrics"]["stock"] == stock].copy()

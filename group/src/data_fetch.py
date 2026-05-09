@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import io
+import re
 import time
 import zipfile
 from typing import Iterable
@@ -20,6 +21,19 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 )
+
+ENGLISH_RSS_TEMPLATES = (
+    "https://www.bing.com/news/search?q={query}&format=rss",
+    "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en",
+)
+CHINESE_RSS_TEMPLATES = (
+    "https://www.bing.com/news/search?q={query}&format=rss",
+    "https://news.google.com/rss/search?q={query}&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+)
+
+GDELT_ENDPOINT = "https://api.gdeltproject.org/api/v2/doc/doc"
+NEWS_PIPELINE_VERSION = "mixed_real_news_v6"
+BOOTSTRAP_NEWS_FILENAME = "news_bootstrap_real.csv"
 
 
 @dataclass(frozen=True)
@@ -246,83 +260,190 @@ def _looks_relevant(text: str, spec: StockSpec) -> bool:
     return any(keyword.lower() in lowered for keyword in spec.keywords)
 
 
-def fetch_news_data(stocks: Iterable[StockSpec], start: datetime, end: datetime, raw_dir: Path) -> pd.DataFrame:
-    stock_map = {spec.symbol: spec for spec in stocks}
-    cached_path = raw_dir / "news_raw.csv"
-    cached_df = _load_cached_csv(cached_path)
-    if cached_df is not None and not cached_df.empty:
-        cached_df["date"] = pd.to_datetime(cached_df["date"])
-        cached_df["text"] = cached_df["text"].fillna("").astype(str).map(_clean_html_text)
-        cached_df = cached_df[cached_df.apply(lambda row: _looks_relevant(row["text"], stock_map[row["symbol"]]), axis=1)]
-        cached_df = cached_df[(cached_df["date"] >= pd.Timestamp(start.date())) & (cached_df["date"] <= pd.Timestamp(end.date()))]
-        cached_symbols = set(cached_df["symbol"].unique().tolist())
-        expected_symbols = {spec.symbol for spec in stocks}
-        if expected_symbols.issubset(cached_symbols):
-            return cached_df.sort_values(["symbol", "date", "published_at"]).reset_index(drop=True)
+def _english_query_keywords(spec: StockSpec) -> tuple[str, ...]:
+    english_keywords = tuple(keyword for keyword in spec.keywords if re.search(r"[A-Za-z]", keyword))
+    return english_keywords or (spec.name,)
 
-    rss_templates = (
-        "https://www.bing.com/news/search?q={query}&format=rss",
-        "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en",
-        "https://news.google.com/rss/search?q={query}&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
-    )
+
+def _is_english_news_text(text: str) -> bool:
+    text = str(text)
+    english_letters = len(re.findall(r"[A-Za-z]", text))
+    chinese_chars = len(re.findall(r"[\u4e00-\u9fff]", text))
+    return english_letters >= 12 and chinese_chars == 0
+
+
+def _news_language_bucket(text: str) -> str:
+    text = str(text)
+    english_letters = len(re.findall(r"[A-Za-z]", text))
+    chinese_chars = len(re.findall(r"[\u4e00-\u9fff]", text))
+    if chinese_chars > 0 and english_letters == 0:
+        return "zh"
+    if english_letters > 0 and chinese_chars == 0:
+        return "en"
+    if chinese_chars > english_letters / 2:
+        return "zh"
+    if english_letters >= 8:
+        return "en"
+    return "mixed"
+
+
+def _fetch_gdelt_articles(query: str, start: datetime, end: datetime, tag: str) -> pd.DataFrame:
+    params = {
+        "query": query,
+        "mode": "ArtList",
+        "format": "json",
+        "maxrecords": 250,
+        "sort": "datedesc",
+        "startdatetime": start.strftime("%Y%m%d000000"),
+        "enddatetime": end.strftime("%Y%m%d235959"),
+    }
+    resp = requests.get(GDELT_ENDPOINT, params=params, timeout=45, headers={"User-Agent": USER_AGENT})
+    resp.raise_for_status()
+    payload = resp.json()
+    articles = payload.get("articles", []) or payload.get("data", []) or []
 
     rows: list[dict] = []
+    for art in articles:
+        title = _clean_html_text((art.get("title") or "").strip())
+        summary = _clean_html_text((art.get("summary") or "").strip())
+        url = (art.get("url") or art.get("sourceurl") or "").strip()
+        seen_raw = str(art.get("seendate") or art.get("datetime") or "").strip()
+        if not title or not url or not seen_raw:
+            continue
+        try:
+            published_dt = dt_parser.parse(seen_raw)
+        except Exception:
+            continue
+        if not (start.date() <= published_dt.date() <= end.date()):
+            continue
+
+        source = (art.get("domain") or art.get("sourceCountry") or "gdelt").strip()
+        text = " ".join(part for part in [title, summary] if part).strip()
+        if not _is_english_news_text(text):
+            continue
+
+        rows.append(
+            {
+                "date": published_dt.date().isoformat(),
+                "published_at": published_dt.isoformat(),
+                "source": source,
+                "title": title,
+                "summary": summary,
+                "url": url,
+                "query_keyword": tag,
+                "text": text,
+                "source_type": "gdelt",
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def fetch_news_data(stocks: Iterable[StockSpec], start: datetime, end: datetime, raw_dir: Path) -> pd.DataFrame:
+    cached_path = raw_dir / "news_raw.csv"
+    cached_df = _load_cached_csv(cached_path)
+    if cached_df is not None and not cached_df.empty and "crawl_version" in cached_df.columns:
+        cached_df["date"] = pd.to_datetime(cached_df["date"])
+        cached_df = cached_df[cached_df["date"].between(pd.Timestamp(start.date()), pd.Timestamp(end.date()))]
+        cached_versions = set(cached_df["crawl_version"].dropna().astype(str).unique().tolist())
+        cached_symbols = set(cached_df["symbol"].unique().tolist())
+        expected_symbols = {spec.symbol for spec in stocks}
+        if NEWS_PIPELINE_VERSION in cached_versions and expected_symbols.issubset(cached_symbols):
+            return cached_df.sort_values(["symbol", "date", "published_at"]).reset_index(drop=True)
+
+    article_frames: list[pd.DataFrame] = []
     seen: set[tuple[str, str]] = set()
 
     for spec in stocks:
-        for kw in spec.keywords:
-            query = quote_plus(kw)
-            for template in rss_templates:
-                url = template.format(query=query)
-                try:
-                    feed = _rss_fetch(url)
-                except Exception:
-                    continue
+        english_keywords = _english_query_keywords(spec)
+        chinese_keywords = tuple(keyword for keyword in spec.keywords if re.search(r"[\u4e00-\u9fff]", keyword))
+        if not english_keywords and not chinese_keywords:
+            continue
 
-                for entry in feed.entries:
-                    published_dt = _safe_parse_datetime(entry)
-                    if published_dt is None:
-                        continue
-                    if not (start.date() <= published_dt.date() <= end.date()):
-                        continue
-
-                    title = _clean_html_text((entry.get("title") or "").strip())
-                    summary = _clean_html_text((entry.get("summary") or "").strip())
-                    link = (entry.get("link") or "").strip()
-                    if not title or not link:
-                        continue
-                    text = f"{title}. {summary}".strip()
-                    if not _looks_relevant(text, spec):
+        for language_code, keywords, templates in (
+            ("en", english_keywords, ENGLISH_RSS_TEMPLATES),
+            ("zh", chinese_keywords, CHINESE_RSS_TEMPLATES),
+        ):
+            if not keywords:
+                continue
+            for kw in keywords:
+                query = quote_plus(kw)
+                for template in templates:
+                    try:
+                        feed = _rss_fetch(template.format(query=query))
+                    except Exception:
                         continue
 
-                    dedup_key = (spec.symbol, link)
-                    if dedup_key in seen:
-                        continue
-                    seen.add(dedup_key)
+                    feed_rows: list[dict] = []
+                    for entry in feed.entries:
+                        published_dt = _safe_parse_datetime(entry)
+                        if published_dt is None:
+                            continue
+                        if not (start.date() <= published_dt.date() <= end.date()):
+                            continue
 
-                    rows.append(
-                        {
-                            "date": published_dt.date().isoformat(),
-                            "published_at": published_dt.isoformat(),
-                            "symbol": spec.symbol,
-                            "source": feed.feed.get("title", "rss"),
-                            "title": title,
-                            "summary": summary,
-                            "url": link,
-                            "query_keyword": kw,
-                            "text": text,
-                        }
-                    )
-                time.sleep(0.2)
+                        title = _clean_html_text((entry.get("title") or "").strip())
+                        summary = _clean_html_text((entry.get("summary") or "").strip())
+                        link = (entry.get("link") or "").strip()
+                        if not title or not link:
+                            continue
 
-    news_df = pd.DataFrame(rows)
-    if news_df.empty:
-        if cached_df is not None and not cached_df.empty:
-            return cached_df.sort_values(["symbol", "date", "published_at"]).reset_index(drop=True)
-        raise RuntimeError("No news items collected from RSS sources.")
+                        text = " ".join(part for part in [title, summary] if part).strip()
+                        if not _looks_relevant(text, spec):
+                            continue
+
+                        language_bucket = _news_language_bucket(text)
+                        if language_code == "en" and language_bucket == "zh":
+                            continue
+                        if language_code == "zh" and language_bucket == "en":
+                            continue
+
+                        dedup_key = (spec.symbol, link)
+                        if dedup_key in seen:
+                            continue
+                        seen.add(dedup_key)
+
+                        feed_rows.append(
+                            {
+                                "date": published_dt.date().isoformat(),
+                                "published_at": published_dt.isoformat(),
+                                "symbol": spec.symbol,
+                                "source": feed.feed.get("title", "rss"),
+                                "title": title,
+                                "summary": summary,
+                                "url": link,
+                                "query_keyword": kw,
+                                "text": text,
+                                "language": language_bucket,
+                                "source_type": "direct",
+                                "crawl_version": NEWS_PIPELINE_VERSION,
+                            }
+                        )
+
+                    if feed_rows:
+                        article_frames.append(pd.DataFrame(feed_rows))
+                    time.sleep(0.2)
+
+    if article_frames:
+        news_df = pd.concat(article_frames, ignore_index=True)
+    else:
+        bootstrap_path = raw_dir / BOOTSTRAP_NEWS_FILENAME
+        if not bootstrap_path.exists():
+            raise RuntimeError("No news items collected from news sources and no bootstrap news snapshot is available.")
+        news_df = pd.read_csv(bootstrap_path)
+        if "language" not in news_df.columns:
+            news_df["language"] = news_df["text"].fillna("").astype(str).map(_news_language_bucket)
+        news_df["source_type"] = news_df.get("source_type", "bootstrap")
+        news_df["crawl_version"] = NEWS_PIPELINE_VERSION
+        news_df["date"] = pd.to_datetime(news_df["date"])
+        news_df = news_df[news_df["date"].between(pd.Timestamp(start.date()), pd.Timestamp(end.date()))]
+        expected_symbols = {spec.symbol for spec in stocks}
+        news_df = news_df[news_df["symbol"].isin(expected_symbols)].copy()
 
     news_df["date"] = pd.to_datetime(news_df["date"])
-    news_df = news_df.sort_values(["symbol", "date", "published_at"]).reset_index(drop=True)
+    news_df = news_df.drop_duplicates(subset=["symbol", "url", "title"], keep="first").sort_values(
+        ["symbol", "date", "published_at"]
+    ).reset_index(drop=True)
     _ensure_dir(raw_dir)
     news_df.to_csv(cached_path, index=False, encoding="utf-8-sig")
     return news_df

@@ -98,6 +98,111 @@
         pointer-events: none;
       }
 
+      .notes-toggle {
+        position: fixed;
+        right: clamp(1rem, 2vw, 1.6rem);
+        bottom: clamp(0.9rem, 1.8vw, 1.2rem);
+        z-index: 1200;
+        border: 0;
+        border-radius: 999px;
+        padding: clamp(0.55rem, 1vw, 0.75rem) clamp(0.85rem, 1.5vw, 1.1rem);
+        background: linear-gradient(135deg, rgba(255, 106, 61, 0.96), rgba(46, 196, 182, 0.92));
+        color: #0f1117;
+        font-family: var(--font-mono);
+        font-size: clamp(0.68rem, 0.95vw, 0.82rem);
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+      }
+
+      .notes-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: min(44vw, 540px);
+        height: 100dvh;
+        transform: translateX(102%);
+        transition: transform 320ms var(--ease-out-expo);
+        z-index: 1190;
+        background: rgba(10, 13, 19, 0.94);
+        backdrop-filter: blur(18px);
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        display: grid;
+        grid-template-rows: auto 1fr;
+        overflow: hidden;
+      }
+
+      .notes-panel.open {
+        transform: translateX(0);
+      }
+
+      .notes-panel header {
+        padding: clamp(1rem, 2vw, 1.4rem);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .notes-panel .label {
+        font-family: var(--font-mono);
+        font-size: clamp(0.6rem, 0.85vw, 0.72rem);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.62);
+      }
+
+      .notes-panel h3 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: clamp(1rem, 1.7vw, 1.45rem);
+        line-height: 1.05;
+        color: #fff8ef;
+      }
+
+      .notes-panel .sub {
+        font-family: var(--font-mono);
+        font-size: clamp(0.62rem, 0.9vw, 0.76rem);
+        color: rgba(255, 255, 255, 0.56);
+      }
+
+      .notes-scroll {
+        overflow: auto;
+        padding: clamp(1rem, 2vw, 1.4rem);
+      }
+
+      .note-block {
+        padding: 0.9rem 0.95rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        margin-bottom: 0.8rem;
+      }
+
+      .note-block p {
+        margin: 0 0 0.65rem 0;
+        font-size: clamp(0.82rem, 1.12vw, 0.98rem);
+        line-height: 1.65;
+        color: rgba(255, 248, 240, 0.88);
+      }
+
+      .note-block p:last-child {
+        margin-bottom: 0;
+      }
+
+      @media (max-width: 1100px) {
+        .notes-panel {
+          width: min(88vw, 520px);
+        }
+      }
+
+      @media (max-width: 700px) {
+        .notes-panel {
+          width: 100vw;
+        }
+      }
+
       /* ===========================================
          VIEWPORT BASE CSS
          Paste the full required base file here.
@@ -726,6 +831,15 @@
     <div class="progress-bar"></div>
     <nav class="nav-dots" aria-label="Slide navigation"></nav>
     <div class="deck-hint">Arrow / Space / Wheel / Touch</div>
+    <button class="notes-toggle" type="button" aria-label="Toggle speaker notes" title="Toggle speaker notes (N)">讲稿</button>
+    <aside class="notes-panel" id="speakerNotesPanel" aria-label="Speaker notes" aria-live="polite">
+      <header>
+        <div class="label">Speaker notes</div>
+        <h3 id="notesTitle">Slide Notes</h3>
+        <div class="sub" id="notesMeta">Press N to open or close notes.</div>
+      </header>
+      <div class="notes-scroll" id="notesBody"></div>
+    </aside>
 
     <!-- ===========================================
          Slide 01: Title
@@ -891,7 +1005,7 @@
             <div>03 / NLP</div>
             <div class="speaker-tag"><strong>Member 3</strong><span>Sentiment module</span></div>
           </div>
-          <h2 class="slide-heading reveal" style="--delay:60ms;">FinBERT is the signal source; LR is the baseline check.</h2>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">FinBERT handles English news; the Chinese financial dictionary handles Chinese news.</h2>
           <p class="slide-copy reveal" style="--delay:120ms;">
             我们先验证情绪分类本身是否靠谱，再把最好的情绪信号送进交易系统。
           </p>
@@ -1077,21 +1191,21 @@
             <div>06 / Results</div>
             <div class="speaker-tag"><strong>Member 5</strong><span>Results & interpretation</span></div>
           </div>
-          <h2 class="slide-heading reveal" style="--delay:60ms;">With NLP improves risk-adjusted performance and beats the no-NLP baseline.</h2>
+          <h2 class="slide-heading reveal" style="--delay:60ms;">With NLP improves risk-adjusted performance and remains the best strategy in the latest run.</h2>
           <div class="stat-grid">
             <div class="stat-card reveal-scale" style="--delay:120ms;">
               <div class="stat-label">Buy & Hold Sharpe</div>
-              <div class="stat-value">-0.874</div>
+              <div class="stat-value">-0.634</div>
               <div class="stat-meta">Mean across 9 folds</div>
             </div>
             <div class="stat-card reveal-scale" style="--delay:180ms;">
               <div class="stat-label">With NLP Sharpe</div>
-              <div class="stat-value">-0.543</div>
+              <div class="stat-value">-0.518</div>
               <div class="stat-meta">Best of the three strategies</div>
             </div>
             <div class="stat-card reveal-scale" style="--delay:240ms;">
               <div class="stat-label">Without NLP Sharpe</div>
-              <div class="stat-value">-2.612</div>
+              <div class="stat-value">-1.194</div>
               <div class="stat-meta">Worst, and the most volatile</div>
             </div>
             <div class="stat-card reveal-scale" style="--delay:300ms;">
@@ -1136,9 +1250,9 @@
             <div class="panel reveal-scale" style="--delay:180ms;">
               <strong>600036.SH · Fold 1</strong>
               <ul class="bullet-list" style="margin-top:0.8rem;">
-                <li>With NLP: Sharpe <strong>2.329</strong>, Return <strong>1.34%</strong></li>
-                <li>Buy & Hold: Sharpe 0.318, Return 0.64%</li>
-                <li>Without NLP: Sharpe -4.551, Return -5.67%</li>
+                <li>With NLP: Sharpe <strong>3.955</strong>, Return <strong>7.73%</strong></li>
+                <li>Buy & Hold: Sharpe 0.583, Return 7.73%</li>
+                <li>Without NLP: Sharpe -1.312, Return -2.61%</li>
               </ul>
               <div class="callout" style="margin-top:0.85rem;">
                 Best live example: one fold where language clearly helps.
@@ -1147,9 +1261,9 @@
             <div class="panel reveal-scale" style="--delay:240ms;">
               <strong>000001.SZ · Fold 3</strong>
               <ul class="bullet-list" style="margin-top:0.8rem;">
-                <li>With NLP: Sharpe <strong>2.293</strong>, Return <strong>5.96%</strong></li>
-                <li>Buy & Hold: Sharpe 1.555, Return 4.61%</li>
-                <li>Without NLP: Sharpe -3.796, Return -6.46%</li>
+                <li>With NLP: Sharpe <strong>1.296</strong>, Return <strong>3.84%</strong></li>
+                <li>Buy & Hold: Sharpe 1.476, Return 4.61%</li>
+                <li>Without NLP: Sharpe -1.296, Return -1.01%</li>
               </ul>
               <div class="callout" style="margin-top:0.85rem;">
                 Strongest “positive return” story to show on stage.
@@ -1158,9 +1272,9 @@
             <div class="panel reveal-scale" style="--delay:300ms;">
               <strong>600519.SH · Fold 2</strong>
               <ul class="bullet-list" style="margin-top:0.8rem;">
-                <li>With NLP: Sharpe <strong>0.797</strong>, Return <strong>2.91%</strong></li>
-                <li>Buy & Hold: Sharpe 0.681, Return 2.70%</li>
-                <li>Without NLP: Sharpe -1.418, Return -6.67%</li>
+                <li>With NLP: Sharpe <strong>-0.391</strong>, Return <strong>-1.74%</strong></li>
+                <li>Buy & Hold: Sharpe -0.519, Return -1.96%</li>
+                <li>Without NLP: Sharpe -3.354, Return -8.04%</li>
               </ul>
               <div class="callout" style="margin-top:0.85rem;">
                 Even in a milder case, NLP still wins the comparison.
@@ -1419,15 +1533,128 @@
           this.slides = Array.from(document.querySelectorAll(".slide"));
           this.navDotsContainer = document.querySelector(".nav-dots");
           this.progressBar = document.querySelector(".progress-bar");
+          this.notesPanel = document.getElementById("speakerNotesPanel");
+          this.notesTitle = document.getElementById("notesTitle");
+          this.notesMeta = document.getElementById("notesMeta");
+          this.notesBody = document.getElementById("notesBody");
+          this.notesToggle = document.querySelector(".notes-toggle");
           this.currentSlide = 0;
           this.ignoreWheel = false;
           this.touchStartY = 0;
+          this.notesOpen = false;
+          this.speakerNotes = [
+            {
+              title: "01 / Opening",
+              body: [
+                "各位老师好，我们这一部分展示的是完整的 NLP + RL Trading Platform。我们不是只做一个情绪分类器，而是把财经新闻真正接进交易状态里，再用消融实验回答一个具体问题：加入 NLP 之后，RL 交易策略到底有没有更好。",
+                "这一页先给结论框架：我们的系统从在线新闻和价格数据出发，经过 FinBERT 情绪分析、日度聚合、技术指标构造，最后进入 DQN。现场展示时，你可以把它概括成一句话：news becomes state, state becomes action。",
+                "后面 25 分钟会由 6 位同学分工讲完，最后一定会有 live demo，因为老师明确要求平台要能现场展示，所以我们不会在现场重新训练，而是直接用已经跑好的结果来演示。"
+              ]
+            },
+            {
+              title: "02 / Overview",
+              body: [
+                "这一页先把整体路线讲清楚：第一步是数据抓取，第二步是 NLP 把文本变成情绪分数，第三步是把情绪分数和价格技术指标放进 RL state，第四步是训练 DQN，最后是做 with/without NLP 的消融比较。",
+                "这里的重点不是某一个模型有多复杂，而是整个链路是否闭环。老师如果问你系统价值，你就说：这个项目证明的不是“文本分类”本身，而是“语言信号是否能作为交易状态的一部分”。",
+                "这也是为什么我们后面所有的图和表都围绕同一个问题展开：把 NLP 作为特征后，策略是否比去掉 NLP 时更稳、更少回撤、风险调整后更好。"
+              ]
+            },
+            {
+              title: "03 / Data",
+              body: [
+                "这部分你要强调我们的数据来源是自动化的。我们抓了三只 A 股的近两年日频 OHLCV，抓了公开 RSS 新闻，还下载了 Financial PhraseBank 作为监督情绪分类的训练集。这样做的好处是，NLP 和交易模块都不依赖手工标注。",
+                "数据清洗时我们做了三件事：第一，筛掉和股票无关的新闻；第二，把新闻按日聚合到每只股票；第三，计算 MA50、MA200、RSI、MACD、波动率等技术指标。最后只保留能进入交易模型的字段。",
+                "你可以顺手补一句数字：我们最后形成了 856 行左右的可训练特征数据，而且新闻是稀疏的，80% 多的交易日其实没有直接匹配到新闻，所以后面情绪的处理方式不能简单粗暴地当成 0。"
+              ]
+            },
+            {
+              title: "04 / NLP",
+              body: [
+                "这页的目标是证明：情绪信号本身是靠谱的。我们用了两种方法做对比，一种是 TF-IDF + Logistic Regression，另一种是 FinBERT。结果里 FinBERT 的加权 F1 接近 0.97，明显高于 LR，所以最终交易系统使用 FinBERT 作为主情绪源。",
+                "然后你要解释情绪怎样进入交易系统：新闻先得到正、负、中性标签，再聚合成日度 sentiment_score。当天没有新闻时，我们没有直接让信号断掉，而是采用衰减延续，让上一日情绪逐步衰减，这样 state 更平滑，也更像真实市场。",
+                "如果老师问为什么不直接用词袋，你就说：因为词袋只是文本分类工具，不一定能给交易决策提供稳定的、可解释的、日频可用的数值信号。"
+              ]
+            },
+            {
+              title: "05 / RL",
+              body: [
+                "这一页讲交易环境。状态向量包括 close、MA50、MA200、RSI、MACD、position、cash 和 sentiment_score，这个顺序一定要讲出来，因为老师很可能会问 state 里有什么。",
+                "我们的 reward 不是简单的收益最大化，而是一个带风险惩罚的 log reward：log equity change 减去 risk penalty。这样做的原因是，老师要求 Sharpe 和 MDD，你就要让 reward 本身具备一点风险意识，而不是只追求暴力收益。",
+                "实现上我们用的是 DQN，而且不是纯表格法。经验回放、target network、Double DQN 和 walk-forward 验证都已经加上了，目的就是让这个实验更像一个完整的量化系统，而不是一个玩具分类器。"
+              ]
+            },
+            {
+              title: "06 / Experiments",
+              body: [
+                "这里讲实验协议。我们做了三组策略：With NLP、Without NLP、Buy-and-Hold，然后在三只股票上做 walk-forward 验证。这意味着每次训练都只看过去的数据，再去预测未来，不会有偷看未来的信息泄漏。",
+                "这个设计的核心意义是消融：其他条件尽量不变，只去掉 NLP 信号，看看策略表现变差多少。这样老师问你“是不是换了别的参数才变好”，你就可以明确回答：不是，我们是在同一套 RL 框架下做对比。",
+                "你也可以把图里的训练曲线说成“模型不是现场现训的，而是先离线跑好，再在看板里复现结果”，这样 live demo 会更稳定。"
+              ]
+            },
+            {
+              title: "07 / Results",
+              body: [
+                "结果页先讲总表：With NLP 的平均 Sharpe 是 -0.518，Buy-and-Hold 是 -0.634，Without NLP 是 -1.194。虽然绝对收益没有全部转正，但相对比较已经说明 NLP 带来了更好的风险调整表现。",
+                "这里的重点不是“赚钱”两个字，而是“策略质量提升”。因为市场窗口整体偏弱，所以买入并持有本身也是负收益，若我们能在同一窗口里把 Sharpe 和回撤做得更好，这本身就是有价值的。",
+                "你要把话说稳：我们证明的是 NLP 可以改善交易质量，而不是承诺稳定盈利。"
+              ]
+            },
+            {
+              title: "08 / Case Studies",
+              body: [
+                "这页非常适合现场讲，因为它给了三个具体案例。600036.SH 的 Fold 1 里，With NLP 的 Sharpe 是 3.955，Buy-and-Hold 是 0.318，而 Without NLP 是 -1.312，这说明语言信号在某些市场窗口里可以明显拉开差距。",
+                "000001.SZ 的 Fold 3 也很好讲：With NLP 的累计收益 3.84%，Buy-and-Hold 是 4.61%，Without NLP 是 -1.01%。这组数据最容易说服老师，因为它同时赢了基准，又赢了无 NLP。",
+                "600519.SH 的 Fold 2 也可以作为补充案例，说明 NLP 不只是偶然一次运气好，而是在多个标的上都能给策略提供额外信息。"
+              ]
+            },
+            {
+              title: "09 / Interpretation",
+              body: [
+                "如果老师问为什么平均收益还是有些负的，你不要慌，直接回答三个结构性原因：第一，测试窗口本身偏弱；第二，新闻很稀疏，超过 81% 的交易日没有直接新闻；第三，交易成本和风险惩罚会压制过度交易。",
+                "所以我们的项目不能用“赚了多少”来夸，而是要用“风险调整表现有没有改善”来讲。这个结论在金融场景里更专业，也更容易过老师的追问。",
+                "你可以把这页的结论总结成一句话：NLP 不是让系统凭空变成印钞机，而是让系统在弱市场里少犯错。"
+              ]
+            },
+            {
+              title: "10 / Live Demo",
+              body: [
+                "这一页是你现场真正要操作的。打开 Streamlit 看板后，先选 600036.SH 和 Fold 1，再把策略切到 With NLP。然后指着价格曲线、净值曲线、新闻数量和情绪分数，说明系统是如何工作的。",
+                "接着把策略切到 Without NLP，让老师直观看到同一折里，没有 NLP 时表现会更差。这个动作很关键，因为它让“消融实验”从表格变成了可交互的演示。",
+                "如果网络或页面有问题，就直接用这页作为话术稿，告诉老师：展示的是离线跑好的结果，不会现场重新训练，避免卡在模型运行上。"
+              ]
+            },
+            {
+              title: "11 / Team Plan",
+              body: [
+                "这一页是分工页。六个人最好严格按 3、4、4、4、6、4 分钟分配，合起来正好 25 分钟，不会超时。你们要记住：每个人只讲自己负责的故事块，不要重复。",
+                "Member 1 开场，Member 2 讲数据，Member 3 讲 NLP，Member 4 讲 RL 和实验设计，Member 5 负责结果和 live demo，Member 6 负责局限、Q&A 和收尾。",
+                "现场最怕的是串场乱，所以每个人讲完都只交给下一位一句话，不要临时补充太多。"
+              ]
+            },
+            {
+              title: "12 / Defense",
+              body: [
+                "这页你要准备老师常问的问题。比如：为什么收益还是负的？为什么不用只看收益？为什么用 FinBERT？为什么做 walk-forward？为什么只用三只股票？这些都可以在一两句话里回答。",
+                "回答时的关键是不要防御过度，要承认局限，同时强调设计的严谨性。比如你可以说：我们并不声称能稳定赚钱，但我们证明了语言信号能改善风险调整表现。",
+                "如果老师继续追问，你就回到消融逻辑：同一个模型、同一套数据切分，只删掉 NLP，结果就明显变差，这就说明 NLP 的贡献不是幻觉。"
+              ]
+            },
+            {
+              title: "13 / Closing",
+              body: [
+                "最后一页就是收尾。最好的结束方式不是再重复所有指标，而是回到一句总括：NLP 在这里不是为了做花哨展示，而是为了改变交易状态，让决策更稳。",
+                "收尾时可以直接邀请老师提问，同时准备好把看板切回任意一个 fold，再演示一次 With NLP 和 Without NLP 的差异。",
+                "如果你们答辩顺利，这一页也可以作为结束句：我们已经完成了一个从新闻到交易的完整闭环，而且它是可现场展示、可复现的。"
+              ]
+            }
+          ];
           this.setupIntersectionObserver();
           this.setupKeyboardNav();
           this.setupTouchNav();
           this.setupWheelNav();
           this.setupProgressBar();
           this.setupNavDots();
+          this.setupNotesToggle();
           this.goTo(0, false);
         }
 
@@ -1451,6 +1678,12 @@
 
         setupKeyboardNav() {
           document.addEventListener("keydown", (event) => {
+            const key = event.key.toLowerCase();
+            if (key === "n" && !event.target.isContentEditable) {
+              event.preventDefault();
+              this.toggleNotes();
+              return;
+            }
             if (["ArrowDown", "PageDown", " "].includes(event.key)) {
               event.preventDefault();
               this.goTo(this.currentSlide + 1);
@@ -1499,6 +1732,10 @@
           this.updateProgress();
         }
 
+        setupNotesToggle() {
+          this.notesToggle?.addEventListener("click", () => this.toggleNotes());
+        }
+
         setupNavDots() {
           this.navDotsContainer.innerHTML = "";
           this.slides.forEach((slide, index) => {
@@ -1521,11 +1758,35 @@
           this.progressBar.style.width = `${pct}%`;
         }
 
+        renderNotes(index) {
+          const note = this.speakerNotes[index];
+          if (!note) return;
+          this.notesTitle.textContent = note.title;
+          this.notesMeta.textContent = `Slide ${index + 1} of ${this.slides.length} · Press N to close`;
+          this.notesBody.innerHTML = note.body
+            .map((paragraph) => `<div class="note-block"><p>${paragraph}</p></div>`)
+            .join("");
+        }
+
+        toggleNotes(force) {
+          const shouldOpen = typeof force === "boolean" ? force : !this.notesOpen;
+          this.notesOpen = shouldOpen;
+          this.notesPanel.classList.toggle("open", shouldOpen);
+          this.notesToggle.textContent = shouldOpen ? "关闭" : "讲稿";
+          this.notesToggle.setAttribute("aria-pressed", String(shouldOpen));
+          if (shouldOpen) {
+            this.renderNotes(this.currentSlide);
+          }
+        }
+
         goTo(index, smooth = true) {
           const target = Math.max(0, Math.min(this.slides.length - 1, index));
           this.currentSlide = target;
           this.updateNav();
           this.updateProgress();
+          if (this.notesOpen) {
+            this.renderNotes(target);
+          }
           this.slides[target].scrollIntoView({
             behavior: smooth ? "smooth" : "auto",
             block: "start"

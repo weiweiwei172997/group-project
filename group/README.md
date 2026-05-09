@@ -41,3 +41,12 @@ streamlit run .\streamlit_dashboard.py
 ```
 
 The dashboard reads directly from `group/results` and is intended for live presentation: it shows the ablation summary, selected fold metrics, price and equity curves, sentiment signals, and recent headlines scored by FinBERT.
+
+## Presentation File
+
+For the report presentation deck, use `open_presentation.bat` or open `report_presentation_standalone.html` directly. The standalone file embeds the charts so it can be submitted or opened on another computer without the `results` folder.
+
+If VS Code keeps showing `Failed to open ... (0x2)`, do not use the editor's external-open button. Use:
+
+1. `Terminal > Run Task > Open Standalone Presentation`
+2. Or run `Terminal > Run Task > Start Local Presentation Server`, then `Terminal > Run Task > Open Presentation URL`
